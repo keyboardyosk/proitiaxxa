@@ -11,15 +11,27 @@ export function generatePDF(route: Route, mapImage?: string): void {
     ? route.finish.name.split(',').slice(0, 2).join(',')
     : `${route.finish.lat.toFixed(4)}°, ${route.finish.lon.toFixed(4)}°`;
   
-  // Получаем все шаги маршрута (без группировки)
-  const allSteps = route.steps.filter(s => s.distance > 10).slice(0, 60);
+  // Получаем все шаги маршрута (без группировки) с координатами
+  const allSteps = route.steps.filter(s => s.distance > 10).slice(0, 60).map((step, i) => {
+    const progress = i / allSteps.length;
+    const coordIndex = Math.floor(progress * route.geometry.length);
+    const coords = route.geometry[coordIndex] || route.geometry[0];
+    return {
+      ...step,
+      lat: coords[0],
+      lon: coords[1],
+    };
+  });
   
   // Создаём контейнер для PDF
   const container = document.createElement('div');
   container.style.width = '210mm';
+  container.style.minHeight = '297mm';
   container.style.fontFamily = 'Inter, sans-serif';
   container.style.color = '#171717';
   container.style.backgroundColor = '#F1EFE8';
+  container.style.padding = '18mm';
+  container.style.boxSizing = 'border-box';
   
   container.innerHTML = `
     <!-- СТРАНИЦА 1: ОБЛОЖКА -->
@@ -170,10 +182,15 @@ export function generatePDF(route: Route, mapImage?: string): void {
         
         <div style="margin-bottom: 5mm;">
           ${allSteps.map((step, i) => `
-            <div style="display: flex; align-items: baseline; gap: 3mm; margin-bottom: 1.5mm;">
-              <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; width: 6mm;">${String(i + 1).padStart(2, '0')}</div>
-              <div style="flex: 1; font-size: 9pt; color: #171717;">${step.name || 'Продолжайте движение'}</div>
-              <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262;">${step.distance >= 1000 ? `${(step.distance / 1000).toFixed(1)} км` : `${Math.round(step.distance)} м`}</div>
+            <div style="display: flex; align-items: baseline; gap: 3mm; margin-bottom: 2mm;">
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; width: 6mm; flex-shrink: 0;">${String(i + 1).padStart(2, '0')}</div>
+              <div style="flex: 1;">
+                <div style="font-size: 9pt; color: #171717;">${step.name || 'Продолжайте движение'}</div>
+                <div style="display: flex; gap: 3mm; margin-top: 0.5mm;">
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 7pt; color: #D92F2F;">${step.lat.toFixed(5)}, ${step.lon.toFixed(5)}</span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 7pt; color: #626262;">${step.distance >= 1000 ? `${(step.distance / 1000).toFixed(1)} км` : `${Math.round(step.distance)} м`}</span>
+                </div>
+              </div>
             </div>
           `).join('')}
         </div>

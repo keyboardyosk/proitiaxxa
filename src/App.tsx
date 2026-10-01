@@ -4,7 +4,7 @@ import { generateRoute, formatDistance, formatDuration } from './routeGenerator'
 import RouteMap from './RouteMap';
 import PointPicker from './PointPicker';
 import BrandMark from './BrandMark';
-import MapSnapshotModal from './MapSnapshotModal';
+import MapSnapshotPage from './MapSnapshotPage';
 import { generatePDF } from './pdfGenerator';
 
 type Screen = 'landing' | 'route' | 'loading' | 'pick-start' | 'pick-finish';
@@ -177,6 +177,16 @@ function App() {
           handleGenerate(screen === 'pick-start' ? 'from-start' : 'to-finish', point);
         }}
         onCancel={() => setScreen('landing')}
+      />
+    );
+  }
+  
+  // === СТРАНИЦА СНИМКОВ КАРТЫ ===
+  if (showSnapshotModal && route) {
+    return (
+      <MapSnapshotPage
+        route={route}
+        onClose={() => setShowSnapshotModal(false)}
       />
     );
   }
@@ -487,39 +497,28 @@ function App() {
       <footer className="text-center py-4 text-ink-muted text-[10px] font-technical uppercase tracking-[0.2em] relative z-10 border-t border-line-soft">
         OpenStreetMap · OSRM
       </footer>
-      
-      {/* Модальное окно для создания снимков карты */}
-      {showSnapshotModal && route && (
-        <MapSnapshotModal
-          route={route}
-          onClose={() => setShowSnapshotModal(false)}
-        />
-      )}
     </div>
   );
 }
 
 // Компонент описания маршрута — в виде маршрутного листа
 function RouteDescription({ route }: { route: Route }) {
-  const streetSegments: { name: string; distance: number }[] = [];
-  let currentStreet = '';
-  let currentDistance = 0;
+  // Получаем все шаги маршрута
+  const allSteps = route.steps.filter(s => s.distance > 10).slice(0, 60);
   
-  for (const step of route.steps) {
-    const streetName = step.name || 'безымянная дорога';
-    if (streetName !== currentStreet) {
-      if (currentStreet && currentDistance > 50) {
-        streetSegments.push({ name: currentStreet, distance: currentDistance });
-      }
-      currentStreet = streetName;
-      currentDistance = step.distance;
-    } else {
-      currentDistance += step.distance;
-    }
-  }
-  if (currentStreet && currentDistance > 50) {
-    streetSegments.push({ name: currentStreet, distance: currentDistance });
-  }
+  // Вычисляем координаты для каждого шага
+  const stepsWithCoords = allSteps.map((step, i) => {
+    // Находим координаты для этого шага
+    const progress = i / allSteps.length;
+    const coordIndex = Math.floor(progress * route.geometry.length);
+    const coords = route.geometry[coordIndex] || route.geometry[0];
+    
+    return {
+      ...step,
+      lat: coords[0],
+      lon: coords[1],
+    };
+  });
   
   return (
     <div className="space-y-4">
@@ -550,64 +549,42 @@ function RouteDescription({ route }: { route: Route }) {
               ? route.start.name.split(',').slice(0, 2).join(',')
               : `${route.start.lat.toFixed(4)}°, ${route.start.lon.toFixed(4)}°`}
           </div>
-          <div className="font-mono text-[10px] text-ink-muted mt-0.5">
+          <div className="font-mono text-[10px] text-route mt-0.5">
             {route.start.lat.toFixed(5)}, {route.start.lon.toFixed(5)}
           </div>
         </div>
       </div>
       
-      {/* Промежуточные точки с координатами */}
-      {route.geometry.length > 0 && (
-        <div className="py-3 border-b border-line-soft">
-          <div className="font-technical text-[10px] uppercase tracking-[0.2em] text-ink-muted mb-2">
-            Промежуточные точки
-          </div>
-          <div className="space-y-1">
-            {(() => {
-              // Выбираем 5-7 промежуточных точек равномерно по маршруту
-              const numPoints = Math.min(7, Math.max(3, Math.floor(route.geometry.length / 200)));
-              const points: { lat: number; lon: number; index: number }[] = [];
-              for (let i = 1; i <= numPoints; i++) {
-                const idx = Math.floor((i / (numPoints + 1)) * route.geometry.length);
-                const [lat, lon] = route.geometry[idx];
-                points.push({ lat, lon, index: i });
-              }
-              return points.map((point) => (
-                <div key={point.index} className="flex items-center gap-2 text-xs">
-                  <div className="w-1.5 h-1.5 rounded-full bg-ink-muted"></div>
-                  <span className="font-mono text-ink-muted">
-                    {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
-                  </span>
-                </div>
-              ));
-            })()}
-          </div>
-        </div>
-      )}
-      
-      {/* Путь */}
+      {/* Путь с координатами */}
       <div>
         <div className="font-technical text-[10px] uppercase tracking-[0.2em] text-ink-muted mb-3">
           Путь
         </div>
-        <div className="space-y-1.5">
-          {streetSegments.slice(0, 30).map((seg, i) => (
-            <div key={i} className="flex items-baseline gap-3 text-sm">
-              <div className="font-mono text-[10px] text-ink-muted w-6 flex-shrink-0">
-                {String(i + 1).padStart(2, '0')}
+        <ol className="space-y-2">
+          {stepsWithCoords.map((step, i) => (
+            <li key={i} className="flex items-start gap-3 text-sm">
+              <div className="font-mono text-xs text-ink-muted w-8 flex-shrink-0 pt-0.5">
+                {String(i + 1).padStart(2, '0')}.
               </div>
-              <div className="flex-1 text-ink truncate">
-                {seg.name}
+              <div className="flex-1">
+                <div className="text-ink">
+                  {step.name || 'Продолжайте движение'}
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="font-mono text-[10px] text-ink-muted">
+                    {step.lat.toFixed(5)}, {step.lon.toFixed(5)}
+                  </span>
+                  <span className="font-mono text-[10px] text-ink-muted">
+                    {step.distance >= 1000 ? `${(step.distance / 1000).toFixed(1)} км` : `${Math.round(step.distance)} м`}
+                  </span>
+                </div>
               </div>
-              <div className="font-mono text-[11px] text-ink-muted flex-shrink-0">
-                {seg.distance >= 1000 ? `${(seg.distance / 1000).toFixed(1)} км` : `${Math.round(seg.distance)} м`}
-              </div>
-            </div>
+            </li>
           ))}
-        </div>
-        {streetSegments.length > 30 && (
-          <div className="mt-2 font-technical text-[10px] uppercase tracking-[0.15em] text-ink-muted">
-            + ещё {streetSegments.length - 30} участков
+        </ol>
+        {allSteps.length > 60 && (
+          <div className="mt-3 font-technical text-[10px] uppercase tracking-[0.15em] text-ink-muted">
+            + ещё {allSteps.length - 60} шагов
           </div>
         )}
       </div>
@@ -624,7 +601,7 @@ function RouteDescription({ route }: { route: Route }) {
               ? route.finish.name.split(',').slice(0, 2).join(',')
               : `${route.finish.lat.toFixed(4)}°, ${route.finish.lon.toFixed(4)}°`}
           </div>
-          <div className="font-mono text-[10px] text-ink-muted mt-0.5">
+          <div className="font-mono text-[10px] text-route mt-0.5">
             {route.finish.lat.toFixed(5)}, {route.finish.lon.toFixed(5)}
           </div>
         </div>
