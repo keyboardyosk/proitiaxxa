@@ -12,10 +12,20 @@ function App() {
   const [route, setRoute] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showDescription, setShowDescription] = useState(false);
+  // Сохранённая пользовательская точка (для пересоздания маршрута)
+  const [savedUserPoint, setSavedUserPoint] = useState<{
+    point: GeoPoint;
+    mode: 'from-start' | 'to-finish';
+  } | null>(null);
   
   const handleGenerate = useCallback(async (mode: GenerationMode = 'random', userPoint?: GeoPoint) => {
     setScreen('loading');
     setError(null);
+    
+    // Сохраняем пользовательскую точку для возможности пересоздания
+    if ((mode === 'from-start' || mode === 'to-finish') && userPoint) {
+      setSavedUserPoint({ point: userPoint, mode });
+    }
     
     try {
       const newRoute = await generateRoute(mode, userPoint);
@@ -33,9 +43,25 @@ function App() {
     }
   }, []);
   
+  // Новый случайный маршрут (сбрасывает сохранённую точку)
   const handleNewRoute = useCallback(() => {
+    setSavedUserPoint(null);
     handleGenerate('random');
   }, [handleGenerate]);
+  
+  // Пересоздать маршрут с той же указанной точкой
+  const handleRegenerate = useCallback(() => {
+    if (savedUserPoint) {
+      handleGenerate(savedUserPoint.mode, savedUserPoint.point);
+    }
+  }, [savedUserPoint, handleGenerate]);
+  
+  // Изменить точку (вернуться к выбору)
+  const handleChangePoint = useCallback(() => {
+    if (savedUserPoint) {
+      setScreen(savedUserPoint.mode === 'from-start' ? 'pick-start' : 'pick-finish');
+    }
+  }, [savedUserPoint]);
   
   const handleDownloadPDF = useCallback(() => {
     if (route) {
@@ -47,6 +73,7 @@ function App() {
     setScreen('landing');
     setRoute(null);
     setShowDescription(false);
+    setSavedUserPoint(null);
   }, []);
   
   // === ЭКРАН ЗАГРУЗКИ ===
@@ -157,15 +184,48 @@ function App() {
           
           {/* Actions */}
           <div className="flex flex-wrap gap-3 mb-6">
-            <button
-              onClick={handleNewRoute}
-              className="px-6 py-3 bg-blue-800 text-white rounded-lg font-serif hover:bg-blue-900 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Новый маршрут
-            </button>
+            {savedUserPoint ? (
+              <>
+                <button
+                  onClick={handleRegenerate}
+                  className="px-6 py-3 bg-blue-800 text-white rounded-lg font-serif hover:bg-blue-900 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Пересоздать маршрут
+                </button>
+                <button
+                  onClick={handleChangePoint}
+                  className="px-6 py-3 bg-white text-stone-700 border border-stone-300 rounded-lg font-serif hover:bg-stone-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Изменить точку
+                </button>
+                <button
+                  onClick={handleNewRoute}
+                  className="px-6 py-3 bg-white text-stone-700 border border-stone-300 rounded-lg font-serif hover:bg-stone-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Случайный маршрут
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleNewRoute}
+                className="px-6 py-3 bg-blue-800 text-white rounded-lg font-serif hover:bg-blue-900 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Новый маршрут
+              </button>
+            )}
             <button
               onClick={() => setShowDescription(!showDescription)}
               className="px-6 py-3 bg-white text-stone-700 border border-stone-300 rounded-lg font-serif hover:bg-stone-50 transition-colors flex items-center gap-2"
@@ -185,6 +245,25 @@ function App() {
               Скачать PDF
             </button>
           </div>
+          
+          {/* Hint about saved point */}
+          {savedUserPoint && (
+            <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-6 flex items-start gap-3">
+              <svg className="w-5 h-5 text-blue-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-sm">
+                <p className="text-blue-900 font-serif">
+                  {savedUserPoint.mode === 'from-start' 
+                    ? 'Маршрут начинается в заданной вами точке' 
+                    : 'Маршрут заканчивается в заданной вами точке'}
+                </p>
+                <p className="text-blue-700 mt-0.5">
+                  Нажмите «Пересоздать маршрут», чтобы получить новый путь с той же точкой.
+                </p>
+              </div>
+            </div>
+          )}
           
           {/* Description */}
           {showDescription && (
