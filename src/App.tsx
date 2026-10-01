@@ -96,17 +96,24 @@ function App() {
     try {
       let mapImage: string | undefined;
       
-      // Захватываем изображение карты через статический URL
-      // Используем OpenStreetMap Static Maps
-      const bounds = {
-        minLat: Math.min(route.start.lat, route.finish.lat) - 0.02,
-        maxLat: Math.max(route.start.lat, route.finish.lat) + 0.02,
-        minLon: Math.min(route.start.lon, route.finish.lon) - 0.02,
-        maxLon: Math.max(route.start.lon, route.finish.lon) + 0.02,
-      };
+      // Рассчитываем bounds по всей геометрии маршрута
+      const lats = route.geometry.map(g => g[0]);
+      const lons = route.geometry.map(g => g[1]);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLon = Math.min(...lons);
+      const maxLon = Math.max(...lons);
       
-      const centerLat = (bounds.minLat + bounds.maxLat) / 2;
-      const centerLon = (bounds.minLon + bounds.maxLon) / 2;
+      // Добавляем отступы (10% от размера)
+      const latPadding = (maxLat - minLat) * 0.1;
+      const lonPadding = (maxLon - minLon) * 0.1;
+      
+      const bounds = {
+        minLat: minLat - latPadding,
+        maxLat: maxLat + latPadding,
+        minLon: minLon - lonPadding,
+        maxLon: maxLon + lonPadding,
+      };
       
       // Создаём canvas для карты
       const canvas = document.createElement('canvas');
@@ -119,20 +126,62 @@ function App() {
         ctx.fillStyle = '#E8E5DB';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Загружаем тайлы карты
-        const tileUrl = `https://tile.openstreetmap.org/13/${Math.floor((centerLon + 180) / 360 * Math.pow(2, 13))}/${Math.floor((1 - Math.log(Math.tan(centerLat * Math.PI / 180) + 1 / Math.cos(centerLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, 13))}.png`;
+        // Рассчитываем zoom level для покрытия всей области
+        const latDiff = bounds.maxLat - bounds.minLat;
+        const lonDiff = bounds.maxLon - bounds.minLon;
+        const maxDiff = Math.max(latDiff, lonDiff);
+        
+        // Подбираем zoom level (чем больше область, тем меньше zoom)
+        let zoom = 14;
+        if (maxDiff > 0.15) zoom = 11;
+        else if (maxDiff > 0.1) zoom = 12;
+        else if (maxDiff > 0.05) zoom = 13;
+        
+        // Функция конвертации lat/lon в tile coordinates
+        const lon2tile = (lon: number, z: number) => Math.floor((lon + 180) / 360 * Math.pow(2, z));
+        const lat2tile = (lat: number, z: number) => Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        
+        // Рассчитываем диапазон тайлов
+        const minTileX = lon2tile(bounds.minLon, zoom);
+        const maxTileX = lon2tile(bounds.maxLon, zoom);
+        const minTileY = lat2tile(bounds.maxLat, zoom);
+        const maxTileY = lat2tile(bounds.minLat, zoom);
+        
+        const tileWidth = 256;
+        const tileHeight = 256;
+        const totalTilesX = maxTileX - minTileX + 1;
+        const totalTilesY = maxTileY - minTileY + 1;
+        
+        // Масштабируем тайлы для заполнения canvas
+        const scaleX = canvas.width / (totalTilesX * tileWidth);
+        const scaleY = canvas.height / (totalTilesY * tileHeight);
+        const scale = Math.min(scaleX, scaleY);
+        
+        // Загружаем и рисуем все необходимые тайлы
+        const tilePromises: Promise<void>[] = [];
+        for (let x = minTileX; x <= maxTileX; x++) {
+          for (let y = minTileY; y <= maxTileY; y++) {
+            const tileUrl = `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
+            const promise = new Promise<void>((resolve) => {
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              img.onload = () => {
+                const destX = (x - minTileX) * tileWidth * scale;
+                const destY = (y - minTileY) * tileHeight * scale;
+                ctx.drawImage(img, destX, destY, tileWidth * scale, tileHeight * scale);
+                resolve();
+              };
+              img.onerror = () => resolve();
+              img.src = tileUrl;
+            });
+            tilePromises.push(promise);
+          }
+        }
         
         try {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = tileUrl;
-          });
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          await Promise.all(tilePromises);
         } catch (e) {
-          console.warn('Could not load map tile:', e);
+          console.warn('Could not load map tiles:', e);
         }
         
         // Рисуем маршрут

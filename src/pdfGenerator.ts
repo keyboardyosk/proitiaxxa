@@ -2,6 +2,32 @@ import jsPDF from 'jspdf';
 import { Route } from './types';
 import { formatDistance, formatDuration } from './routeGenerator';
 
+// Функция для конвертации кириллицы в Windows-1251
+function encodeCyrillic(text: string): string {
+  const win1251: { [key: string]: number } = {
+    'А': 192, 'Б': 193, 'В': 194, 'Г': 195, 'Д': 196, 'Е': 197, 'Ж': 198, 'З': 199,
+    'И': 200, 'Й': 201, 'К': 202, 'Л': 203, 'М': 204, 'Н': 205, 'О': 206, 'П': 207,
+    'Р': 208, 'С': 209, 'Т': 210, 'У': 211, 'Ф': 212, 'Х': 213, 'Ц': 214, 'Ч': 215,
+    'Ш': 216, 'Щ': 217, 'Ъ': 218, 'Ы': 219, 'Ь': 220, 'Э': 221, 'Ю': 222, 'Я': 223,
+    'а': 224, 'б': 225, 'в': 226, 'г': 227, 'д': 228, 'е': 229, 'ж': 230, 'з': 231,
+    'и': 232, 'й': 233, 'к': 234, 'л': 235, 'м': 236, 'н': 237, 'о': 238, 'п': 239,
+    'р': 240, 'с': 241, 'т': 242, 'у': 243, 'ф': 244, 'х': 245, 'ц': 246, 'ч': 247,
+    'ш': 248, 'щ': 249, 'ъ': 250, 'ы': 251, 'ь': 252, 'э': 253, 'ю': 254, 'я': 255,
+    'Ё': 168, 'ё': 184
+  };
+  
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (win1251[char]) {
+      result += String.fromCharCode(win1251[char]);
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
+
 export async function generatePDF(route: Route, mapImage?: string): Promise<void> {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = 210;
@@ -22,6 +48,9 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   const ROUTE = [217, 47, 47] as const;
   const PAPER = [241, 239, 232] as const;
   
+  // Вспомогательная функция для текста
+  const t = (text: string) => encodeCyrillic(text);
+  
   // ========== СТРАНИЦА 1: ОБЛОЖКА ==========
   doc.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
@@ -39,10 +68,10 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(54);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text('ПРОЙТИ', pageWidth / 2, 80, { align: 'center' });
+  doc.text(t('ПРОЙТИ'), pageWidth / 2, 80, { align: 'center' });
   
   doc.setFontSize(28);
-  doc.text('САНКТ-ПЕТЕРБУРГЪ', pageWidth / 2, 95, { align: 'center' });
+  doc.text(t('САНКТ-ПЕТЕРБУРГЪ'), pageWidth / 2, 95, { align: 'center' });
   
   // Разделитель
   doc.setDrawColor(184, 181, 173);
@@ -53,7 +82,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('МАРШРУТ', pageWidth / 2, 120, { align: 'center' });
+  doc.text(t('МАРШРУТ'), pageWidth / 2, 120, { align: 'center' });
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(48);
@@ -64,61 +93,61 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('НАПРАВЛЕНИЕ', pageWidth / 2, 155, { align: 'center' });
+  doc.text(t('НАПРАВЛЕНИЕ'), pageWidth / 2, 155, { align: 'center' });
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text(route.direction, pageWidth / 2, 165, { align: 'center' });
+  doc.text(t(route.direction), pageWidth / 2, 165, { align: 'center' });
   
   // Расстояние
   doc.setFont('courier', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('РАССТОЯНИЕ', pageWidth / 2, 180, { align: 'center' });
+  doc.text(t('РАССТОЯНИЕ'), pageWidth / 2, 180, { align: 'center' });
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(42);
   doc.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
   doc.text(`${(route.distanceMeters / 1000).toFixed(1)}`, pageWidth / 2 - 10, 200, { align: 'right' });
   doc.setFontSize(20);
-  doc.text('КМ', pageWidth / 2 - 5, 200, { align: 'left' });
+  doc.text(t('КМ'), pageWidth / 2 - 5, 200, { align: 'left' });
   
   // Старт / Финиш
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
   
-  doc.text('СТАРТ', margin, 220);
+  doc.text(t('СТАРТ'), margin, 220);
   doc.setFillColor(INK[0], INK[1], INK[2]);
   doc.rect(margin, 223, 3, 3, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text(startName, margin + 6, 226);
+  doc.text(t(startName), margin + 6, 226);
   
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('ФИНИШ', margin, 235);
+  doc.text(t('ФИНИШ'), margin, 235);
   doc.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
   doc.circle(margin + 1.5, 239, 1.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text(finishName, margin + 6, 240);
+  doc.text(t(finishName), margin + 6, 240);
   
   // Время и дата
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text(`≈ ВРЕМЯ В ПУТИ · ${formatDuration(route.durationSeconds)}`, margin, 260);
+  doc.text(`${t('≈ ВРЕМЯ В ПУТИ')} · ${formatDuration(route.durationSeconds)}`, margin, 260);
   doc.text(route.createdAt.toLocaleDateString('ru-RU'), pageWidth - margin, 260, { align: 'right' });
   
   // Слоган
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(10);
-  doc.text('Не гулять. Пересечь город.', pageWidth / 2, 275, { align: 'center' });
+  doc.text(t('Не гулять. Пересечь город.'), pageWidth / 2, 275, { align: 'center' });
   
   // ========== СТРАНИЦА 2: КАРТА ==========
   doc.addPage();
@@ -129,17 +158,17 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('ПЕЧАТНАЯ КАРТА', margin, 20);
+  doc.text(t('ПЕЧАТНАЯ КАРТА'), margin, 20);
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text(`Маршрут №${routeNum}`, margin, 28);
+  doc.text(`${t('Маршрут')} №${routeNum}`, margin, 28);
   
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text(route.direction, pageWidth - margin, 20, { align: 'right' });
+  doc.text(t(route.direction), pageWidth - margin, 20, { align: 'right' });
   doc.text(formatDistance(route.distanceMeters), pageWidth - margin, 28, { align: 'right' });
   
   // Карта
@@ -158,13 +187,13 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
       doc.setFont('courier', 'normal');
       doc.setFontSize(10);
       doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      doc.text('Карта недоступна', pageWidth / 2, mapY + mapHeight / 2, { align: 'center' });
+      doc.text(t('Карта недоступна'), pageWidth / 2, mapY + mapHeight / 2, { align: 'center' });
     }
   } else {
     doc.setFont('courier', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    doc.text('Карта недоступна', pageWidth / 2, mapY + mapHeight / 2, { align: 'center' });
+    doc.text(t('Карта недоступна'), pageWidth / 2, mapY + mapHeight / 2, { align: 'center' });
   }
   
   // Легенда
@@ -175,16 +204,16 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('A · СТАРТ', margin + 5, legendY + 2);
+  doc.text(t('A · СТАРТ'), margin + 5, legendY + 2);
   
   doc.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
   doc.circle(margin + 30, legendY + 1.5, 1.5, 'F');
-  doc.text('B · ФИНИШ', margin + 34, legendY + 2);
+  doc.text(t('B · ФИНИШ'), margin + 34, legendY + 2);
   
   doc.setDrawColor(ROUTE[0], ROUTE[1], ROUTE[2]);
   doc.setLineWidth(0.8);
   doc.line(margin + 60, legendY + 1.5, margin + 68, legendY + 1.5);
-  doc.text('МАРШРУТ', margin + 70, legendY + 2);
+  doc.text(t('МАРШРУТ'), margin + 70, legendY + 2);
   
   doc.text('© OpenStreetMap', pageWidth - margin, legendY + 2, { align: 'right' });
   
@@ -203,13 +232,13 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('МАРШРУТНЫЙ ЛИСТ', margin, 20);
+  doc.text(t('МАРШРУТНЫЙ ЛИСТ'), margin, 20);
   doc.text(`№${routeNum}`, pageWidth - margin, 20, { align: 'right' });
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text(route.direction, margin, 30);
+  doc.text(t(route.direction), margin, 30);
   
   doc.setDrawColor(INK[0], INK[1], INK[2]);
   doc.setLineWidth(0.3);
@@ -221,10 +250,10 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text('A · СТАРТ', margin + 5, 39);
+  doc.text(t('A · СТАРТ'), margin + 5, 39);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(startName, pageWidth - margin, 39, { align: 'right' });
+  doc.text(t(startName), pageWidth - margin, 39, { align: 'right' });
   
   doc.line(margin, 43, pageWidth - margin, 43);
   
@@ -232,7 +261,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('ПУТЬ', margin, 48);
+  doc.text(t('ПУТЬ'), margin, 48);
   
   // Группируем шаги по улицам
   const streetSegments: { name: string; distance: number }[] = [];
@@ -258,7 +287,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   for (let i = 0; i < streetSegments.length && i < 40; i++) {
     const seg = streetSegments[i];
     const num = String(i + 1).padStart(2, '0');
-    const dist = seg.distance >= 1000 ? `${(seg.distance / 1000).toFixed(1)} км` : `${Math.round(seg.distance)} м`;
+    const dist = seg.distance >= 1000 ? `${(seg.distance / 1000).toFixed(1)} ${t('км')}` : `${Math.round(seg.distance)} ${t('м')}`;
     
     doc.setFont('courier', 'normal');
     doc.setFontSize(8);
@@ -269,7 +298,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
     doc.setFontSize(9);
     doc.setTextColor(INK[0], INK[1], INK[2]);
     const streetText = seg.name.length > 55 ? seg.name.substring(0, 55) + '…' : seg.name;
-    doc.text(streetText, margin + 8, y);
+    doc.text(t(streetText), margin + 8, y);
     
     doc.setFont('courier', 'normal');
     doc.setFontSize(8);
@@ -289,7 +318,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
     doc.setFont('courier', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    doc.text(`+ ещё ${streetSegments.length - 40} участков`, margin, y);
+    doc.text(`${t('+ ещё')} ${streetSegments.length - 40} ${t('участков')}`, margin, y);
     y += 5;
   }
   
@@ -309,11 +338,11 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  doc.text('B · ФИНИШ', margin + 5, y + 2);
+  doc.text(t('B · ФИНИШ'), margin + 5, y + 2);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text(finishName, pageWidth - margin, y + 2, { align: 'right' });
+  doc.text(t(finishName), pageWidth - margin, y + 2, { align: 'right' });
   
   // Итог
   y += 8;
@@ -323,7 +352,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('ИТОГО', margin, y);
+  doc.text(t('ИТОГО'), margin, y);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(INK[0], INK[1], INK[2]);
@@ -332,7 +361,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('≈ ВРЕМЯ', pageWidth / 2, y);
+  doc.text(t('≈ ВРЕМЯ'), pageWidth / 2, y);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(INK[0], INK[1], INK[2]);
@@ -347,13 +376,13 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ', margin, 20);
+  doc.text(t('ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ'), margin, 20);
   doc.text(`№${routeNum}`, pageWidth - margin, 20, { align: 'right' });
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text('МАРШРУТ ПРОЙДЕН', pageWidth / 2, 35, { align: 'center' });
+  doc.text(t('МАРШРУТ ПРОЙДЕН'), pageWidth / 2, 35, { align: 'center' });
   
   // Символ
   doc.setFillColor(INK[0], INK[1], INK[2]);
@@ -368,10 +397,10 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   let passY = 65;
   
   const fields = [
-    { label: 'ДАТА', width: pageWidth - margin * 2 },
-    { label: 'ВРЕМЯ СТАРТА', width: (pageWidth - margin * 2) / 2 - 2 },
-    { label: 'ВРЕМЯ ФИНИША', width: (pageWidth - margin * 2) / 2 - 2 },
-    { label: 'ФАКТИЧЕСКОЕ ВРЕМЯ', width: pageWidth - margin * 2 },
+    { label: t('ДАТА'), width: pageWidth - margin * 2 },
+    { label: t('ВРЕМЯ СТАРТА'), width: (pageWidth - margin * 2) / 2 - 2 },
+    { label: t('ВРЕМЯ ФИНИША'), width: (pageWidth - margin * 2) / 2 - 2 },
+    { label: t('ФАКТИЧЕСКОЕ ВРЕМЯ'), width: pageWidth - margin * 2 },
   ];
   
   for (const field of fields) {
@@ -391,7 +420,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('courier', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('ЗАМЕТКИ', margin, passY);
+  doc.text(t('ЗАМЕТКИ'), margin, passY);
   passY += 5;
   
   for (let i = 0; i < 7; i++) {
@@ -405,7 +434,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  doc.text('Не гулять. Пересечь город.', pageWidth / 2, pageHeight - 15, { align: 'center' });
+  doc.text(t('Не гулять. Пересечь город.'), pageWidth / 2, pageHeight - 15, { align: 'center' });
   
   // Сохраняем PDF
   doc.save(`proiti-spb-${routeNum}.pdf`);
