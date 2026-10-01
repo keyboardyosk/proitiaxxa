@@ -268,6 +268,36 @@ async function fetchWalkingRoute(start: GeoPoint, finish: GeoPoint): Promise<{
   }
 }
 
+// Обратное геокодирование для получения адреса по координатам
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=ru`,
+      { headers: { 'User-Agent': 'ProitiSPB/1.0' } }
+    );
+    const data = await response.json();
+    
+    if (data && data.address) {
+      const addr = data.address;
+      const parts = [];
+      
+      if (addr.road) parts.push(addr.road);
+      if (addr.house_number) parts.push(addr.house_number);
+      if (addr.suburb) parts.push(addr.suburb);
+      else if (addr.neighbourhood) parts.push(addr.neighbourhood);
+      
+      if (parts.length > 0) {
+        return parts.join(', ');
+      }
+    }
+    
+    return data?.display_name?.split(',').slice(0, 2).join(',') || '';
+  } catch (err) {
+    console.error('Reverse geocoding error:', err);
+    return '';
+  }
+}
+
 export async function generateRoute(
   mode: 'random' | 'from-start' | 'to-finish',
   userPoint?: GeoPoint
@@ -320,6 +350,20 @@ export async function generateRoute(
     // Проверяем, что маршрут не идёт по КАД
     if (isRouteOnKAD(routeData.geometry)) {
       continue;
+    }
+    
+    // Получаем адреса для start и finish через обратное геокодирование
+    const [startAddress, finishAddress] = await Promise.all([
+      reverseGeocode(startPoint.lat, startPoint.lon),
+      reverseGeocode(finishPoint.lat, finishPoint.lon)
+    ]);
+    
+    // Обновляем имена точек, если получили адреса
+    if (startAddress) {
+      startPoint.name = startAddress;
+    }
+    if (finishAddress) {
+      finishPoint.name = finishAddress;
     }
     
     // Создаём маршрут
