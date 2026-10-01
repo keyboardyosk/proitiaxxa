@@ -88,7 +88,11 @@ function App() {
   }, [savedUserPoint]);
   
   const handleDownloadPDF = useCallback(() => {
-    if (!route) return;
+    console.log('PDF button clicked', { hasRoute: !!route });
+    if (!route) {
+      console.error('No route available');
+      return;
+    }
     setShowSnapshotModal(true);
   }, [route]);
   
@@ -174,7 +178,7 @@ function App() {
     return (
       <div className="min-h-screen bg-paper flex flex-col">
         {/* Тонкий верхний бар */}
-        <header className="bg-paper border-b border-line-soft relative z-20">
+        <header className="bg-paper border-b border-line-soft relative z-30" style={{ pointerEvents: 'auto' }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
             <button 
               onClick={handleBack}
@@ -196,7 +200,8 @@ function App() {
             
             <button
               onClick={handleDownloadPDF}
-              className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-[10px] uppercase tracking-[0.2em]"
+              className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-[10px] uppercase tracking-[0.2em] relative z-30 cursor-pointer"
+              style={{ pointerEvents: 'auto' }}
             >
               <span className="hidden sm:inline">PDF</span>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +214,7 @@ function App() {
         {/* Desktop: карта слева, инфо справа. Mobile: карта сверху, инфо снизу */}
         <div className="flex-1 flex flex-col lg:flex-row">
           {/* Карта */}
-          <div className="lg:w-3/5 relative" style={{ height: '50vh', minHeight: '360px' }}>
+          <div className="lg:w-3/5 relative" style={{ height: '50vh', minHeight: '360px', zIndex: 1 }}>
             <div ref={mapContainerRef} className="absolute inset-0 lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px)]">
               <RouteMap route={route} />
               
