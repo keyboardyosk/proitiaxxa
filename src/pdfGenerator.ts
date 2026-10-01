@@ -35,10 +35,8 @@ export function generatePDF(route: Route, mapImage?: string): void {
   
   container.innerHTML = `
     <!-- СТРАНИЦА 1: ОБЛОЖКА -->
-    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
-      
-      <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
+    <div style="page-break-after: always; width: 210mm; min-height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; border: 0.3mm solid #B8B5AD;">
+      <div style="height: 100%; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; letter-spacing: 0.1em;">
           <span>59.9°N · 30.3°E · САНКТ-ПЕТЕРБУРГ</span>
           <span>EST. 2026</span>
@@ -113,10 +111,8 @@ export function generatePDF(route: Route, mapImage?: string): void {
     
     ${mapImage ? `
     <!-- СТРАНИЦА 2: КАРТА -->
-    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
-      
-      <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
+    <div style="page-break-after: always; width: 210mm; min-height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; border: 0.3mm solid #B8B5AD;">
+      <div style="height: 100%; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5mm;">
           <div>
             <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em;">ПЕЧАТНАЯ КАРТА</div>
@@ -156,10 +152,8 @@ export function generatePDF(route: Route, mapImage?: string): void {
     ` : ''}
     
     <!-- СТРАНИЦА: МАРШРУТНЫЙ ЛИСТ -->
-    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
-      
-      <div style="position: relative; z-index: 1;">
+    <div style="page-break-after: always; width: 210mm; min-height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; border: 0.3mm solid #B8B5AD;">
+      <div>
         <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 5mm;">
           <span>МАРШРУТНЫЙ ЛИСТ</span>
           <span>№${routeNum}</span>
@@ -220,10 +214,8 @@ export function generatePDF(route: Route, mapImage?: string): void {
     </div>
     
     <!-- СТРАНИЦА: ЛИСТ ПРОХОЖДЕНИЯ -->
-    <div style="width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
-      
-      <div style="position: relative; z-index: 1;">
+    <div style="width: 210mm; min-height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; border: 0.3mm solid #B8B5AD;">
+      <div>
         <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 5mm;">
           <span>ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ</span>
           <span>№${routeNum}</span>
@@ -272,26 +264,20 @@ export function generatePDF(route: Route, mapImage?: string): void {
     </div>
   `;
   
-  // Добавляем контейнер в DOM
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
+  // Добавляем контейнер в DOM (видимый, но за экраном)
+  container.style.position = 'fixed';
+  container.style.left = '0';
   container.style.top = '0';
+  container.style.width = '210mm';
+  container.style.zIndex = '-9999';
+  container.style.opacity = '0';
+  container.style.pointerEvents = 'none';
   document.body.appendChild(container);
   
-  // Ждём загрузки изображений
-  const images = container.querySelectorAll('img');
-  const imagePromises = Array.from(images).map(img => {
-    return new Promise<void>((resolve) => {
-      if (img.complete) {
-        resolve();
-      } else {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-      }
-    });
-  });
+  console.log('Container added to DOM, generating PDF...');
   
-  Promise.all(imagePromises).then(() => {
+  // Небольшая задержка для рендеринга
+  setTimeout(() => {
     // Генерируем PDF
     const opt = {
       margin: 0,
@@ -301,19 +287,25 @@ export function generatePDF(route: Route, mapImage?: string): void {
         scale: 2, 
         useCORS: true, 
         allowTaint: true,
-        logging: false,
-        backgroundColor: '#F1EFE8'
+        logging: true,
+        backgroundColor: '#F1EFE8',
+        windowWidth: 794 // A4 width in pixels at 96 DPI
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
     
+    console.log('Starting html2pdf generation...');
+    
     html2pdf().set(opt).from(container).save().then(() => {
+      console.log('PDF generated successfully');
       document.body.removeChild(container);
     }).catch(err => {
       console.error('Error generating PDF:', err);
-      document.body.removeChild(container);
-      alert('Ошибка при генерации PDF. Попробуйте ещё раз.');
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+      alert('Ошибка при генерации PDF. Проверьте консоль для деталей.');
     });
-  });
+  }, 500);
 }

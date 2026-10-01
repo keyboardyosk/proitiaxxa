@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Route } from './types';
 import html2canvas from 'html2canvas';
@@ -22,6 +22,21 @@ function FitToRoute({ route }: { route: Route }) {
   
   return null;
 }
+
+// Маркеры для старта и финиша
+const startIcon = new L.DivIcon({
+  html: `<div style="background: #171717; width: 16px; height: 16px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+  className: 'custom-marker',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+const finishIcon = new L.DivIcon({
+  html: `<div style="background: #D92F2F; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+  className: 'custom-marker',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
 
 export default function MapSnapshotPage({ route, onClose }: MapSnapshotPageProps) {
   const [snapshots, setSnapshots] = useState<string[]>([]);
@@ -118,6 +133,16 @@ export default function MapSnapshotPage({ route, onClose }: MapSnapshotPageProps
                 url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                 crossOrigin="anonymous"
               />
+              <Polyline
+                positions={route.geometry}
+                pathOptions={{ color: '#D92F2F', weight: 4, opacity: 0.9 }}
+              />
+              <Marker position={[route.start.lat, route.start.lon]} icon={startIcon}>
+                <Popup>Старт</Popup>
+              </Marker>
+              <Marker position={[route.finish.lat, route.finish.lon]} icon={finishIcon}>
+                <Popup>Финиш</Popup>
+              </Marker>
               <FitToRoute route={route} />
             </MapContainer>
           </div>
