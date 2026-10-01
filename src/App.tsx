@@ -5,6 +5,7 @@ import RouteMap from './RouteMap';
 import PointPicker from './PointPicker';
 import BrandMark from './BrandMark';
 import MapSnapshotModal from './MapSnapshotModal';
+import { generatePDF } from './pdfGenerator';
 
 type Screen = 'landing' | 'route' | 'loading' | 'pick-start' | 'pick-finish';
 
@@ -88,11 +89,14 @@ function App() {
   }, [savedUserPoint]);
   
   const handleDownloadPDF = useCallback(() => {
-    console.log('PDF button clicked', { hasRoute: !!route });
-    if (!route) {
-      console.error('No route available');
-      return;
-    }
+    if (!route) return;
+    // Скачиваем PDF без карты
+    generatePDF(route);
+  }, [route]);
+  
+  const handleAddMapToPDF = useCallback(() => {
+    if (!route) return;
+    // Открываем модальное окно для добавления карты
     setShowSnapshotModal(true);
   }, [route]);
   
@@ -359,13 +363,13 @@ function App() {
                 </button>
                 
                 <button
-                  onClick={handleDownloadPDF}
+                  onClick={handleAddMapToPDF}
                   className="w-full px-6 py-3 bg-paper border border-line-soft text-ink font-technical text-[10px] uppercase tracking-[0.15em] hover:bg-paper-dark transition-colors flex items-center justify-center gap-2"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  Скачать PDF
+                  Добавить карту в PDF
                 </button>
               </div>
               
@@ -542,8 +546,40 @@ function RouteDescription({ route }: { route: Route }) {
               ? route.start.name.split(',').slice(0, 2).join(',')
               : `${route.start.lat.toFixed(4)}°, ${route.start.lon.toFixed(4)}°`}
           </div>
+          <div className="font-mono text-[10px] text-ink-muted mt-0.5">
+            {route.start.lat.toFixed(5)}, {route.start.lon.toFixed(5)}
+          </div>
         </div>
       </div>
+      
+      {/* Промежуточные точки с координатами */}
+      {route.geometry.length > 0 && (
+        <div className="py-3 border-b border-line-soft">
+          <div className="font-technical text-[10px] uppercase tracking-[0.2em] text-ink-muted mb-2">
+            Промежуточные точки
+          </div>
+          <div className="space-y-1">
+            {(() => {
+              // Выбираем 5-7 промежуточных точек равномерно по маршруту
+              const numPoints = Math.min(7, Math.max(3, Math.floor(route.geometry.length / 200)));
+              const points: { lat: number; lon: number; index: number }[] = [];
+              for (let i = 1; i <= numPoints; i++) {
+                const idx = Math.floor((i / (numPoints + 1)) * route.geometry.length);
+                const [lat, lon] = route.geometry[idx];
+                points.push({ lat, lon, index: i });
+              }
+              return points.map((point) => (
+                <div key={point.index} className="flex items-center gap-2 text-xs">
+                  <div className="w-1.5 h-1.5 rounded-full bg-ink-muted"></div>
+                  <span className="font-mono text-ink-muted">
+                    {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
+                  </span>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
       
       {/* Путь */}
       <div>
@@ -583,6 +619,9 @@ function RouteDescription({ route }: { route: Route }) {
             {route.finish.name 
               ? route.finish.name.split(',').slice(0, 2).join(',')
               : `${route.finish.lat.toFixed(4)}°, ${route.finish.lon.toFixed(4)}°`}
+          </div>
+          <div className="font-mono text-[10px] text-ink-muted mt-0.5">
+            {route.finish.lat.toFixed(5)}, {route.finish.lon.toFixed(5)}
           </div>
         </div>
       </div>
