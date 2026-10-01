@@ -1,280 +1,24 @@
-import jsPDF from 'jspdf';
+import html2pdf from 'html2pdf.js';
 import { Route } from './types';
 import { formatDistance, formatDuration } from './routeGenerator';
 
 export function generatePDF(route: Route): void {
-  const doc = new jsPDF('p', 'mm', 'a4');
-  const W = 210;
-  const H = 297;
-  const M = 18; // margin
-  const CW = W - M * 2;
+  // Создаём контейнер для рендеринга
+  const container = document.createElement('div');
+  container.style.width = '210mm';
+  container.style.fontFamily = 'Inter, sans-serif';
+  container.style.color = '#171717';
+  container.style.backgroundColor = '#F1EFE8';
   
-  const INK = [23, 23, 23] as const;
-  const MUTED = [98, 98, 98] as const;
-  const LINE = [184, 181, 173] as const;
-  const ROUTE = [217, 47, 47] as const;
-  const PAPER = [241, 239, 232] as const;
-  
-  // ============ СТРАНИЦА 1: ОБЛОЖКА ============
-  // Фон бумаги
-  doc.setFillColor(...PAPER);
-  doc.rect(0, 0, W, H, 'F');
-  
-  // Тонкая рамка
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.3);
-  doc.rect(10, 10, W - 20, H - 20);
-  
-  // Верхний технический блок
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  doc.text('59.9°N · 30.3°E · САНКТ-ПЕТЕРБУРГ', M, 20);
-  doc.text('EST. 2026', W - M, 20, { align: 'right' });
-  
-  // Логотип-символ: квадрат — линия — круг
-  const logoY = 35;
-  doc.setFillColor(...INK);
-  doc.rect(M, logoY, 4, 4, 'F');
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.5);
-  doc.line(M + 4, logoY + 2, W - M - 6, logoY + 2);
-  doc.setFillColor(...ROUTE);
-  doc.circle(W - M - 4, logoY + 2, 2, 'F');
-  
-  // Главный заголовок
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(54);
-  doc.setTextColor(...INK);
-  doc.text('ПРОЙТИ', W / 2, 85, { align: 'center' });
-  
-  doc.setFontSize(28);
-  doc.text('САНКТ-ПЕТЕРБУРГЪ', W / 2, 100, { align: 'center' });
-  
-  // Разделитель
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.3);
-  doc.line(W / 2 - 30, 112, W / 2 + 30, 112);
-  
-  // Номер маршрута
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  doc.text('МАРШРУТ', W / 2, 125, { align: 'center' });
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(48);
-  doc.setTextColor(...INK);
-  doc.text(`№${String(route.routeNumber).padStart(5, '0')}`, W / 2, 148, { align: 'center' });
-  
-  // Направление
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(11);
-  doc.setTextColor(...MUTED);
-  doc.text('НАПРАВЛЕНИЕ', W / 2, 162, { align: 'center' });
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(...INK);
-  doc.text(route.direction, W / 2, 172, { align: 'center' });
-  
-  // Расстояние — крупно
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  doc.text('РАССТОЯНИЕ', W / 2, 190, { align: 'center' });
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(42);
-  doc.setTextColor(...ROUTE);
-  doc.text((route.distanceMeters / 1000).toFixed(1), W / 2 - 10, 210, { align: 'right' });
-  doc.setFontSize(20);
-  doc.text('КМ', W / 2 - 6, 210, { align: 'left' });
-  
-  // Старт / Финиш
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  
-  doc.text('СТАРТ', M, 232);
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.5);
-  doc.rect(M, 235, 3, 3, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...INK);
-  const startLabel = route.start.name 
+  const routeNum = String(route.routeNumber).padStart(5, '0');
+  const startName = route.start.name 
     ? route.start.name.split(',').slice(0, 2).join(',')
     : `${route.start.lat.toFixed(4)}°, ${route.start.lon.toFixed(4)}°`;
-  doc.text(startLabel, M + 6, 238);
-  
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('ФИНИШ', M, 248);
-  doc.setFillColor(...ROUTE);
-  doc.circle(M + 1.5, 252, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...INK);
-  const finishLabel = route.finish.name 
+  const finishName = route.finish.name 
     ? route.finish.name.split(',').slice(0, 2).join(',')
     : `${route.finish.lat.toFixed(4)}°, ${route.finish.lon.toFixed(4)}°`;
-  doc.text(finishLabel, M + 6, 253);
   
-  // Время
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text(`≈ ВРЕМЯ В ПУТИ · ${formatDuration(route.durationSeconds)}`, M, 265);
-  
-  // Дата
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
-  doc.text(`СОЗДАНО: ${route.createdAt.toLocaleDateString('ru-RU')} · ${route.createdAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`, W - M, 265, { align: 'right' });
-  
-  // Слоган внизу
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  doc.text('Не гулять. Пересечь город.', W / 2, 278, { align: 'center' });
-  
-  // ============ СТРАНИЦА 2: КАРТА ============
-  doc.addPage();
-  doc.setFillColor(...PAPER);
-  doc.rect(0, 0, W, H, 'F');
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.3);
-  doc.rect(10, 10, W - 20, H - 20);
-  
-  // Заголовок
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('ПЕЧАТНАЯ КАРТА', M, 20);
-  doc.text(`№${String(route.routeNumber).padStart(5, '0')}`, W - M, 20, { align: 'right' });
-  
-  // Область карты
-  const mapY = 28;
-  const mapH = 200;
-  const mapX = M;
-  const mapW = CW;
-  
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.3);
-  doc.rect(mapX, mapY, mapW, mapH);
-  
-  // Рисуем схему маршрута
-  if (route.geometry.length > 0) {
-    const lats = route.geometry.map(g => g[0]);
-    const lons = route.geometry.map(g => g[1]);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLon = Math.min(...lons);
-    const maxLon = Math.max(...lons);
-    const latRange = maxLat - minLat || 0.01;
-    const lonRange = maxLon - minLon || 0.01;
-    
-    // Тонкая подложка-тень
-    doc.setDrawColor(23, 23, 23);
-    doc.setLineWidth(1.5);
-    const shadowPoints: [number, number][] = route.geometry.map(([lat, lon]) => {
-      const x = mapX + ((lon - minLon) / lonRange) * mapW;
-      const y = mapY + mapH - ((lat - minLat) / latRange) * mapH;
-      return [x, y];
-    });
-    const step = Math.max(1, Math.floor(shadowPoints.length / 250));
-    for (let i = 0; i < shadowPoints.length - step; i += step) {
-      doc.setDrawColor(23, 23, 23);
-      doc.setLineWidth(1.5);
-      doc.line(shadowPoints[i][0], shadowPoints[i][1], shadowPoints[i + step][0], shadowPoints[i + step][1]);
-    }
-    
-    // Красная маршрутная линия
-    for (let i = 0; i < shadowPoints.length - step; i += step) {
-      doc.setDrawColor(...ROUTE);
-      doc.setLineWidth(0.9);
-      doc.line(shadowPoints[i][0], shadowPoints[i][1], shadowPoints[i + step][0], shadowPoints[i + step][1]);
-    }
-    
-    // Старт — квадрат
-    const startPt = shadowPoints[0];
-    doc.setFillColor(...INK);
-    doc.rect(startPt[0] - 2.5, startPt[1] - 2.5, 5, 5, 'F');
-    
-    // Финиш — круг
-    const finishPt = shadowPoints[shadowPoints.length - 1];
-    doc.setFillColor(...ROUTE);
-    doc.circle(finishPt[0], finishPt[1], 3, 'F');
-    
-    // Подписи
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...INK);
-    doc.text('A · СТАРТ', startPt[0] + 5, startPt[1] + 1);
-    doc.setTextColor(...ROUTE);
-    doc.text('B · ФИНИШ', finishPt[0] + 5, finishPt[1] + 1);
-  }
-  
-  // Масштабная линейка
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.3);
-  const scaleY = mapY + mapH + 10;
-  doc.line(M, scaleY, M + 30, scaleY);
-  doc.line(M, scaleY - 1.5, M, scaleY + 1.5);
-  doc.line(M + 30, scaleY - 1.5, M + 30, scaleY + 1.5);
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(...MUTED);
-  doc.text('~ 5 км', M + 15, scaleY + 4, { align: 'center' });
-  
-  // Стрелка севера
-  const northX = W - M - 10;
-  const northY = mapY + mapH + 10;
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.4);
-  doc.line(northX, northY + 8, northX, northY - 4);
-  doc.line(northX, northY - 4, northX - 1.5, northY - 1);
-  doc.line(northX, northY - 4, northX + 1.5, northY - 1);
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...INK);
-  doc.text('N', northX, northY - 6, { align: 'center' });
-  
-  // Информация под картой
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  const infoY = mapY + mapH + 25;
-  doc.text(`МАРШРУТ №${String(route.routeNumber).padStart(5, '0')} · ${route.direction} · ${formatDistance(route.distanceMeters)} · ПЕШКОМ`, W / 2, infoY, { align: 'center' });
-  
-  // Координаты
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
-  doc.text(`A: ${route.start.lat.toFixed(4)}°N, ${route.start.lon.toFixed(4)}°E`, M, infoY + 10);
-  doc.text(`B: ${route.finish.lat.toFixed(4)}°N, ${route.finish.lon.toFixed(4)}°E`, W - M, infoY + 10, { align: 'right' });
-  
-  // ============ СТРАНИЦЫ 3+: МАРШРУТНЫЙ ЛИСТ ============
-  doc.addPage();
-  doc.setFillColor(...PAPER);
-  doc.rect(0, 0, W, H, 'F');
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.3);
-  doc.rect(10, 10, W - 20, H - 20);
-  
-  // Заголовок
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('МАРШРУТНЫЙ ЛИСТ', M, 20);
-  doc.text(`№${String(route.routeNumber).padStart(5, '0')}`, W - M, 20, { align: 'right' });
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(...INK);
-  doc.text(route.direction, M, 32);
-  
-  // Группируем шаги
+  // Группируем шаги по улицам
   const streetSegments: { name: string; distance: number }[] = [];
   let currentStreet = '';
   let currentDistance = 0;
@@ -294,207 +38,220 @@ export function generatePDF(route: Route): void {
     streetSegments.push({ name: currentStreet, distance: currentDistance });
   }
   
-  // Старт
-  let y = 45;
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.3);
-  doc.line(M, y, W - M, y);
-  y += 5;
-  
-  doc.setFillColor(...INK);
-  doc.rect(M, y, 2.5, 2.5, 'F');
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...INK);
-  doc.text('A · СТАРТ', M + 5, y + 2);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  const startName = route.start.name 
-    ? route.start.name.split(',').slice(0, 2).join(',')
-    : `${route.start.lat.toFixed(4)}°, ${route.start.lon.toFixed(4)}°`;
-  doc.text(startName, W - M, y + 2, { align: 'right' });
-  y += 8;
-  
-  // Путь
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  doc.text('ПУТЬ', M, y);
-  y += 5;
-  
-  for (let i = 0; i < streetSegments.length; i++) {
-    if (y > H - M - 30) {
-      doc.addPage();
-      doc.setFillColor(...PAPER);
-      doc.rect(0, 0, W, H, 'F');
-      doc.setDrawColor(...LINE);
-      doc.setLineWidth(0.3);
-      doc.rect(10, 10, W - 20, H - 20);
-      y = 20;
-      doc.setFont('courier', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(...MUTED);
-      doc.text(`МАРШРУТ №${String(route.routeNumber).padStart(5, '0')} · ПРОДОЛЖЕНИЕ`, M, y);
-      y += 8;
-    }
+  // Генерируем HTML
+  container.innerHTML = `
+    <!-- СТРАНИЦА 1: ОБЛОЖКА -->
+    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
+      
+      <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
+        <!-- Верх -->
+        <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; letter-spacing: 0.1em;">
+          <span>59.9°N · 30.3°E · САНКТ-ПЕТЕРБУРГ</span>
+          <span>EST. 2026</span>
+        </div>
+        
+        <!-- Логотип -->
+        <div style="margin-top: 15mm; display: flex; align-items: center; gap: 2mm;">
+          <div style="width: 4mm; height: 4mm; background: #171717;"></div>
+          <div style="flex: 1; height: 0.5mm; background: #171717;"></div>
+          <div style="width: 4mm; height: 4mm; border-radius: 50%; background: #D92F2F;"></div>
+        </div>
+        
+        <!-- Заголовок -->
+        <div style="margin-top: 25mm; text-align: center;">
+          <div style="font-size: 54pt; font-weight: 800; letter-spacing: -0.02em; line-height: 0.95; color: #171717;">ПРОЙТИ</div>
+          <div style="font-size: 28pt; font-weight: 800; letter-spacing: -0.02em; line-height: 0.95; color: #171717; margin-top: 5mm;">САНКТ-ПЕТЕРБУРГЪ</div>
+        </div>
+        
+        <!-- Разделитель -->
+        <div style="margin-top: 10mm; display: flex; justify-content: center;">
+          <div style="width: 60mm; height: 0.3mm; background: #B8B5AD;"></div>
+        </div>
+        
+        <!-- Номер маршрута -->
+        <div style="margin-top: 10mm; text-align: center;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10pt; color: #626262; letter-spacing: 0.2em;">МАРШРУТ</div>
+          <div style="font-size: 48pt; font-weight: 700; color: #171717; margin-top: 3mm;">№${routeNum}</div>
+        </div>
+        
+        <!-- Направление -->
+        <div style="margin-top: 10mm; text-align: center;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11pt; color: #626262; letter-spacing: 0.15em;">НАПРАВЛЕНИЕ</div>
+          <div style="font-size: 16pt; font-weight: 700; color: #171717; margin-top: 2mm;">${route.direction}</div>
+        </div>
+        
+        <!-- Расстояние -->
+        <div style="margin-top: 12mm; text-align: center;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10pt; color: #626262; letter-spacing: 0.15em;">РАССТОЯНИЕ</div>
+          <div style="margin-top: 3mm;">
+            <span style="font-size: 42pt; font-weight: 700; color: #D92F2F;">${(route.distanceMeters / 1000).toFixed(1)}</span>
+            <span style="font-size: 20pt; font-weight: 700; color: #D92F2F; margin-left: 2mm;">КМ</span>
+          </div>
+        </div>
+        
+        <!-- Старт / Финиш -->
+        <div style="margin-top: 15mm;">
+          <div style="margin-bottom: 4mm;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em;">СТАРТ</div>
+            <div style="display: flex; align-items: center; gap: 2mm; margin-top: 1mm;">
+              <div style="width: 3mm; height: 3mm; background: #171717;"></div>
+              <div style="font-size: 11pt; font-weight: 700; color: #171717;">${startName}</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em;">ФИНИШ</div>
+            <div style="display: flex; align-items: center; gap: 2mm; margin-top: 1mm;">
+              <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+              <div style="font-size: 11pt; font-weight: 700; color: #171717;">${finishName}</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Время и дата -->
+        <div style="margin-top: auto; display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262;">
+          <span>≈ ВРЕМЯ В ПУТИ · ${formatDuration(route.durationSeconds)}</span>
+          <span>${route.createdAt.toLocaleDateString('ru-RU')}</span>
+        </div>
+        
+        <!-- Слоган -->
+        <div style="margin-top: 5mm; text-align: center; font-style: italic; font-size: 10pt; color: #626262;">
+          Не гулять. Пересечь город.
+        </div>
+      </div>
+    </div>
     
-    const seg = streetSegments[i];
-    const num = String(i + 1).padStart(2, '0');
-    const dist = seg.distance >= 1000 ? `${(seg.distance / 1000).toFixed(1)} км` : `${Math.round(seg.distance)} м`;
+    <!-- СТРАНИЦА 2: МАРШРУТНЫЙ ЛИСТ -->
+    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
+      
+      <div style="position: relative; z-index: 1;">
+        <!-- Заголовок -->
+        <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 5mm;">
+          <span>МАРШРУТНЫЙ ЛИСТ</span>
+          <span>№${routeNum}</span>
+        </div>
+        
+        <div style="font-size: 18pt; font-weight: 700; color: #171717; margin-bottom: 5mm;">${route.direction}</div>
+        
+        <div style="border-top: 0.3mm solid #171717; padding-top: 2mm; margin-bottom: 3mm;"></div>
+        
+        <!-- Старт -->
+        <div style="display: flex; align-items: center; gap: 2mm; margin-bottom: 3mm;">
+          <div style="width: 2.5mm; height: 2.5mm; background: #171717;"></div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; font-weight: 700; color: #171717; letter-spacing: 0.1em;">A · СТАРТ</div>
+          <div style="flex: 1;"></div>
+          <div style="font-size: 10pt; color: #171717;">${startName}</div>
+        </div>
+        
+        <div style="border-top: 0.3mm solid #171717; padding-top: 2mm; margin-bottom: 3mm;"></div>
+        
+        <!-- Путь -->
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 2mm;">ПУТЬ</div>
+        
+        <div style="margin-bottom: 5mm;">
+          ${streetSegments.slice(0, 40).map((seg, i) => `
+            <div style="display: flex; align-items: baseline; gap: 3mm; margin-bottom: 1.5mm;">
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; width: 6mm;">${String(i + 1).padStart(2, '0')}</div>
+              <div style="flex: 1; font-size: 9pt; color: #171717;">${seg.name}</div>
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262;">${seg.distance >= 1000 ? `${(seg.distance / 1000).toFixed(1)} км` : `${Math.round(seg.distance)} м`}</div>
+            </div>
+          `).join('')}
+          ${streetSegments.length > 40 ? `<div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; margin-top: 2mm;">+ ещё ${streetSegments.length - 40} участков</div>` : ''}
+        </div>
+        
+        <!-- Финиш -->
+        <div style="border-top: 0.3mm solid #171717; padding-top: 2mm; margin-bottom: 3mm;"></div>
+        
+        <div style="display: flex; align-items: center; gap: 2mm; margin-bottom: 5mm;">
+          <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; font-weight: 700; color: #D92F2F; letter-spacing: 0.1em;">B · ФИНИШ</div>
+          <div style="flex: 1;"></div>
+          <div style="font-size: 10pt; color: #171717;">${finishName}</div>
+        </div>
+        
+        <div style="border-top: 0.3mm solid #B8B5AD; padding-top: 3mm;"></div>
+        
+        <!-- Итог -->
+        <div style="display: flex; gap: 10mm; margin-top: 3mm;">
+          <div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em;">ИТОГО</div>
+            <div style="font-size: 14pt; font-weight: 700; color: #171717; margin-top: 1mm;">${formatDistance(route.distanceMeters)}</div>
+          </div>
+          <div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em;">≈ ВРЕМЯ</div>
+            <div style="font-size: 14pt; font-weight: 700; color: #171717; margin-top: 1mm;">${formatDuration(route.durationSeconds)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
     
-    // Номер
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED);
-    doc.text(num, M, y);
-    
-    // Название улицы
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...INK);
-    const streetText = seg.name.length > 55 ? seg.name.substring(0, 55) + '…' : seg.name;
-    doc.text(streetText, M + 8, y);
-    
-    // Расстояние
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED);
-    doc.text(dist, W - M, y, { align: 'right' });
-    
-    y += 4.5;
-  }
+    <!-- СТРАНИЦА 3: ЛИСТ ПРОХОЖДЕНИЯ -->
+    <div style="width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
+      
+      <div style="position: relative; z-index: 1;">
+        <!-- Заголовок -->
+        <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 5mm;">
+          <span>ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ</span>
+          <span>№${routeNum}</span>
+        </div>
+        
+        <div style="text-align: center; font-size: 22pt; font-weight: 700; color: #171717; margin-bottom: 8mm;">МАРШРУТ ПРОЙДЕН</div>
+        
+        <!-- Символ -->
+        <div style="display: flex; justify-content: center; margin-bottom: 15mm;">
+          <div style="display: flex; align-items: center; gap: 2mm;">
+            <div style="width: 3mm; height: 3mm; background: #171717;"></div>
+            <div style="width: 40mm; height: 0.4mm; background: #171717;"></div>
+            <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+          </div>
+        </div>
+        
+        <!-- Поля для заполнения -->
+        <div style="margin-bottom: 8mm;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 2mm;">ДАТА</div>
+          <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+        </div>
+        
+        <div style="display: flex; gap: 10mm; margin-bottom: 8mm;">
+          <div style="flex: 1;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 2mm;">ВРЕМЯ СТАРТА</div>
+            <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 2mm;">ВРЕМЯ ФИНИША</div>
+            <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 10mm;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 2mm;">ФАКТИЧЕСКОЕ ВРЕМЯ</div>
+          <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+        </div>
+        
+        <div style="margin-bottom: 5mm;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em; margin-bottom: 3mm;">ЗАМЕТКИ</div>
+          ${Array(7).fill(0).map(() => `<div style="border-bottom: 0.2mm solid #B8B5AD; height: 8mm;"></div>`).join('')}
+        </div>
+        
+        <!-- Слоган -->
+        <div style="position: absolute; bottom: 15mm; left: 0; right: 0; text-align: center; font-style: italic; font-size: 9pt; color: #626262;">
+          Не гулять. Пересечь город.
+        </div>
+      </div>
+    </div>
+  `;
   
-  // Финиш
-  if (y > H - M - 25) {
-    doc.addPage();
-    doc.setFillColor(...PAPER);
-    doc.rect(0, 0, W, H, 'F');
-    doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.3);
-    doc.rect(10, 10, W - 20, H - 20);
-    y = 20;
-  }
+  // Конвертируем в PDF
+  const opt = {
+    margin: 0,
+    filename: `proiti-spb-${routeNum}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
   
-  y += 3;
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.3);
-  doc.line(M, y, W - M, y);
-  y += 5;
-  
-  doc.setFillColor(...ROUTE);
-  doc.circle(M + 1.25, y + 1.25, 1.5, 'F');
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...ROUTE);
-  doc.text('B · ФИНИШ', M + 5, y + 2);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...INK);
-  const finishName = route.finish.name 
-    ? route.finish.name.split(',').slice(0, 2).join(',')
-    : `${route.finish.lat.toFixed(4)}°, ${route.finish.lon.toFixed(4)}°`;
-  doc.text(finishName, W - M, y + 2, { align: 'right' });
-  
-  // Итог
-  y += 10;
-  doc.setDrawColor(...LINE);
-  doc.line(M, y, W - M, y);
-  y += 6;
-  
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('ИТОГО', M, y);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...INK);
-  doc.text(formatDistance(route.distanceMeters), M + 20, y);
-  
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('≈ ВРЕМЯ', W / 2, y);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...INK);
-  doc.text(formatDuration(route.durationSeconds), W / 2 + 22, y);
-  
-  // ============ ПОСЛЕДНЯЯ СТРАНИЦА: ЛИСТ ПРОХОЖДЕНИЯ ============
-  doc.addPage();
-  doc.setFillColor(...PAPER);
-  doc.rect(0, 0, W, H, 'F');
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.3);
-  doc.rect(10, 10, W - 20, H - 20);
-  
-  // Заголовок
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ', M, 20);
-  doc.text(`№${String(route.routeNumber).padStart(5, '0')}`, W - M, 20, { align: 'right' });
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(...INK);
-  doc.text('МАРШРУТ ПРОЙДЕН', W / 2, 38, { align: 'center' });
-  
-  // Символ
-  const logoY2 = 48;
-  doc.setFillColor(...INK);
-  doc.rect(W / 2 - 20, logoY2, 3, 3, 'F');
-  doc.setDrawColor(...INK);
-  doc.setLineWidth(0.4);
-  doc.line(W / 2 - 17, logoY2 + 1.5, W / 2 + 17, logoY2 + 1.5);
-  doc.setFillColor(...ROUTE);
-  doc.circle(W / 2 + 18.5, logoY2 + 1.5, 1.5, 'F');
-  
-  // Поля для заполнения
-  let passY = 70;
-  
-  const fields = [
-    { label: 'ДАТА', width: CW },
-    { label: 'ВРЕМЯ СТАРТА', width: CW / 2 - 2 },
-    { label: 'ВРЕМЯ ФИНИША', width: CW / 2 - 2 },
-    { label: 'ФАКТИЧЕСКОЕ ВРЕМЯ', width: CW },
-  ];
-  
-  for (const field of fields) {
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED);
-    doc.text(field.label, M, passY);
-    passY += 3;
-    doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.3);
-    if (field.width === CW) {
-      doc.line(M, passY + 5, W - M, passY + 5);
-    } else {
-      doc.line(M, passY + 5, M + field.width, passY + 5);
-    }
-    passY += 14;
-  }
-  
-  // Заметки
-  passY += 5;
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('ЗАМЕТКИ', M, passY);
-  passY += 5;
-  
-  for (let i = 0; i < 7; i++) {
-    doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.2);
-    doc.line(M, passY, W - M, passY);
-    passY += 8;
-  }
-  
-  // Слоган внизу
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('Не гулять. Пересечь город.', W / 2, H - 18, { align: 'center' });
-  
-  doc.save(`proiti-spb-${String(route.routeNumber).padStart(5, '0')}.pdf`);
+  html2pdf().set(opt).from(container).save();
 }
