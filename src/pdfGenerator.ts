@@ -144,7 +144,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   pdf.text(route.createdAt.toLocaleDateString('ru-RU'), pageWidth - margin - 10, 270, { align: 'right' });
   
   // Слоган
-  pdf.setFont('Roboto', 'italic');
+  pdf.setFont('Roboto', 'normal');
   pdf.setFontSize(10);
   pdf.text('Не гулять. Пересечь город.', pageWidth / 2, 278, { align: 'center' });
   
@@ -388,7 +388,7 @@ export async function generatePDF(route: Route, mapImage?: string): Promise<void
   }
   
   // Слоган
-  pdf.setFont('Roboto', 'italic');
+  pdf.setFont('Roboto', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
   pdf.text('Не гулять. Пересечь город.', pageWidth / 2, pageHeight - margin - 5, { align: 'center' });
