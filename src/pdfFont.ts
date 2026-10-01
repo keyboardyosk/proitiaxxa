@@ -1,32 +1,26 @@
 import jsPDF from 'jspdf';
 
-// Загрузка шрифта с поддержкой кириллицы
+// Загрузка шрифта с поддержкой полной кириллицы
 export async function loadCyrillicFont(pdf: jsPDF): Promise<void> {
   try {
-    // Загружаем шрифт Roboto в формате TTF с поддержкой кириллицы
-    const fontUrl = 'https://cdn.jsdelivr.net/fontsource/fonts/roboto@latest/cyrillic-400-normal.ttf';
-    const response = await fetch(fontUrl);
+    // Используем PT Sans - шрифт с полной поддержкой кириллицы
+    const fontRegularUrl = 'https://cdn.jsdelivr.net/fontsource/fonts/pt-sans@latest/cyrillic-400-normal.ttf';
+    const fontBoldUrl = 'https://cdn.jsdelivr.net/fontsource/fonts/pt-sans@latest/cyrillic-700-normal.ttf';
     
-    if (!response.ok) {
-      throw new Error('Failed to load font');
+    // Загружаем обычный шрифт
+    const responseRegular = await fetch(fontRegularUrl);
+    const bufferRegular = await responseRegular.arrayBuffer();
+    const uint8ArrayRegular = new Uint8Array(bufferRegular);
+    let binaryRegular = '';
+    for (let i = 0; i < uint8ArrayRegular.length; i++) {
+      binaryRegular += String.fromCharCode(uint8ArrayRegular[i]);
     }
+    const base64Regular = btoa(binaryRegular);
     
-    const buffer = await response.arrayBuffer();
-    const uint8Array = new Uint8Array(buffer);
-    
-    // Конвертируем в base64
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64 = btoa(binary);
-    
-    // Добавляем шрифт в jsPDF
-    pdf.addFileToVFS('Roboto-Regular.ttf', base64);
-    pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    pdf.addFileToVFS('PTSans-Regular.ttf', base64Regular);
+    pdf.addFont('PTSans-Regular.ttf', 'PTSans', 'normal');
     
     // Загружаем жирный шрифт
-    const fontBoldUrl = 'https://cdn.jsdelivr.net/fontsource/fonts/roboto@latest/cyrillic-700-normal.ttf';
     const responseBold = await fetch(fontBoldUrl);
     const bufferBold = await responseBold.arrayBuffer();
     const uint8ArrayBold = new Uint8Array(bufferBold);
@@ -36,14 +30,14 @@ export async function loadCyrillicFont(pdf: jsPDF): Promise<void> {
     }
     const base64Bold = btoa(binaryBold);
     
-    pdf.addFileToVFS('Roboto-Bold.ttf', base64Bold);
-    pdf.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+    pdf.addFileToVFS('PTSans-Bold.ttf', base64Bold);
+    pdf.addFont('PTSans-Bold.ttf', 'PTSans', 'bold');
     
     // Устанавливаем шрифт по умолчанию
-    pdf.setFont('Roboto', 'normal');
+    pdf.setFont('PTSans', 'normal');
   } catch (error) {
     console.error('Error loading font:', error);
-    // Fallback - используем стандартный шрифт (кириллица не будет работать)
+    // Fallback
     pdf.setFont('helvetica');
   }
 }
