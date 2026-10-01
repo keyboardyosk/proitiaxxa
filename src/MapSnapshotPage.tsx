@@ -81,7 +81,7 @@ export default function MapSnapshotPage({ route, onClose }: MapSnapshotPageProps
     
     try {
       const mapImage = snapshots.length > 0 ? snapshots[0] : undefined;
-      generatePDF(route, mapImage);
+      await generatePDF(route, mapImage);
       onClose();
     } catch (err) {
       console.error('Error generating PDF:', err);

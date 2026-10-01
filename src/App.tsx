@@ -88,10 +88,10 @@ function App() {
     }
   }, [savedUserPoint]);
   
-  const handleDownloadPDF = useCallback(() => {
+  const handleDownloadPDF = useCallback(async () => {
     if (!route) return;
     // Скачиваем PDF без карты
-    generatePDF(route);
+    await generatePDF(route);
   }, [route]);
   
   const handleAddMapToPDF = useCallback(() => {
