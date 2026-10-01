@@ -6,17 +6,17 @@ import { GeoPoint } from './types';
 import LocationSearch from './LocationSearch';
 
 const startIcon = new L.DivIcon({
-  html: `<div style="background: #22c55e; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+  html: `<div style="background: #171717; width: 16px; height: 16px; border: 2.5px solid #F1EFE8; box-shadow: 0 0 0 1px #171717, 0 2px 6px rgba(23,23,23,0.3);"></div>`,
   className: 'custom-marker',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 const finishIcon = new L.DivIcon({
-  html: `<div style="background: #ef4444; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+  html: `<div style="background: #D92F2F; width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid #F1EFE8; box-shadow: 0 0 0 1px #D92F2F, 0 2px 6px rgba(217,47,47,0.4);"></div>`,
   className: 'custom-marker',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
 });
 
 function MapClickHandler({ onMapClick }: { onMapClick: (point: GeoPoint) => void }) {
@@ -48,43 +48,48 @@ export default function PointPicker({ mode, onSelect, onCancel }: PointPickerPro
   const [selectedPoint, setSelectedPoint] = useState<GeoPoint | null>(null);
   
   const isStart = mode === 'start';
-  const title = isStart ? 'Откуда начнём?' : 'Куда идём?';
+  const title = isStart ? 'НАЧНУ ЗДЕСЬ' : 'ЗАКОНЧУ ЗДЕСЬ';
+  const subtitle = isStart ? 'Точка старта' : 'Точка финиша';
   const icon = isStart ? startIcon : finishIcon;
-  const accentColor = isStart ? 'green' : 'red';
   
   const handlePointSelect = (point: GeoPoint) => {
     setSelectedPoint(point);
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col">
+    <div className="min-h-screen bg-paper flex flex-col">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-stone-200">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="bg-paper border-b border-line-soft">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <button 
             onClick={onCancel}
-            className="text-stone-600 hover:text-stone-900 flex items-center gap-2 transition-colors font-serif"
+            className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-xs uppercase tracking-widest"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
             <span>Отмена</span>
           </button>
-          <h1 className="font-serif text-lg text-stone-800">{title}</h1>
+          <div className="text-center">
+            <div className="font-technical text-[10px] uppercase tracking-[0.2em] text-ink-muted">
+              {subtitle}
+            </div>
+            <h1 className="font-display text-lg text-ink">{title}</h1>
+          </div>
           <div className="w-16"></div>
         </div>
       </header>
       
-      {/* Search + info */}
-      <div className="bg-white border-b border-stone-200 px-4 py-4">
-        <div className="max-w-2xl mx-auto space-y-3">
+      {/* Search */}
+      <div className="bg-paper border-b border-line-soft px-4 py-4">
+        <div className="max-w-2xl mx-auto">
           <LocationSearch
             onSelect={handlePointSelect}
-            placeholder={isStart ? 'Адрес старта в Санкт-Петербурге...' : 'Адрес финиша в Санкт-Петербурге...'}
+            placeholder={isStart ? 'Адрес старта в Санкт-Петербурге' : 'Адрес финиша в Санкт-Петербурге'}
             selectedPoint={selectedPoint}
           />
-          <p className="text-center text-stone-400 text-xs font-serif">
-            Введите адрес или кликните на карту
+          <p className="text-center text-ink-muted text-xs font-technical uppercase tracking-wider mt-3">
+            Или кликните на карту
           </p>
         </div>
       </div>
@@ -98,8 +103,8 @@ export default function PointPicker({ mode, onSelect, onCancel }: PointPickerPro
           style={{ minHeight: 'calc(100vh - 280px)' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; OpenStreetMap &copy; CARTO'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
           <MapClickHandler onMapClick={handlePointSelect} />
           <FlyToPoint point={selectedPoint} />
@@ -113,30 +118,34 @@ export default function PointPicker({ mode, onSelect, onCancel }: PointPickerPro
       </div>
       
       {/* Bottom bar */}
-      <div className="bg-white border-t border-stone-200 px-4 py-4">
+      <div className="bg-paper border-t border-line-soft px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           {selectedPoint ? (
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-stone-700 font-serif truncate">
-                <span className={`inline-block w-2 h-2 rounded-full bg-${accentColor}-500 mr-2`}></span>
-                {selectedPoint.name || `${selectedPoint.lat.toFixed(4)}, ${selectedPoint.lon.toFixed(4)}`}
+              <div className="font-technical text-[10px] uppercase tracking-[0.2em] text-ink-muted">
+                {isStart ? 'START' : 'FINISH'}
+              </div>
+              <p className="text-sm text-ink truncate mt-0.5">
+                {selectedPoint.name 
+                  ? selectedPoint.name.split(',').slice(0, 2).join(',')
+                  : `${selectedPoint.lat.toFixed(4)}°, ${selectedPoint.lon.toFixed(4)}°`}
               </p>
-              <p className="text-xs text-stone-400 mt-0.5">
-                {selectedPoint.lat.toFixed(4)}, {selectedPoint.lon.toFixed(4)}
+              <p className="text-xs text-ink-muted mt-0.5 font-mono">
+                {selectedPoint.lat.toFixed(4)}°N · {selectedPoint.lon.toFixed(4)}°E
               </p>
             </div>
           ) : (
-            <p className="text-sm text-stone-400 font-serif italic flex-1">
+            <p className="text-sm text-ink-muted italic flex-1">
               Точка не выбрана
             </p>
           )}
           <button
             onClick={() => selectedPoint && onSelect(selectedPoint)}
             disabled={!selectedPoint}
-            className={`px-8 py-3 rounded-lg font-serif transition-all flex-shrink-0 ${
+            className={`px-8 py-3.5 font-technical text-xs uppercase tracking-[0.15em] transition-all flex-shrink-0 ${
               selectedPoint
-                ? 'bg-blue-800 text-white hover:bg-blue-900 shadow-md hover:shadow-lg'
-                : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                ? 'bg-ink text-paper hover:bg-ink-soft'
+                : 'bg-line-soft text-ink-muted cursor-not-allowed'
             }`}
           >
             Построить маршрут

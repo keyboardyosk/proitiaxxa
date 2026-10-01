@@ -1,10 +1,73 @@
 @import "tailwindcss";
 
-/* Leaflet fixes */
+@theme {
+  --color-paper: #F1EFE8;
+  --color-paper-dark: #E8E5DB;
+  --color-ink: #171717;
+  --color-ink-soft: #3a3a3a;
+  --color-ink-muted: #626262;
+  --color-line: #B8B5AD;
+  --color-line-soft: #D4D1C8;
+  --color-route: #D92F2F;
+  --color-route-dark: #B82424;
+  --color-start: #171717;
+  --color-finish: #D92F2F;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ============ БАЗА ============ */
+html, body {
+  background: #F1EFE8;
+  color: #171717;
+}
+
+/* ============ LEAFLET ============ */
 .leaflet-container {
   width: 100%;
   height: 100%;
   z-index: 1;
+  background: #E8E5DB;
+  font-family: 'Inter', sans-serif;
+}
+
+.leaflet-control-attribution {
+  background: rgba(241, 239, 232, 0.85) !important;
+  color: #626262 !important;
+  font-size: 10px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.leaflet-control-attribution a {
+  color: #626262 !important;
+}
+
+.leaflet-control-zoom a {
+  background: #F1EFE8 !important;
+  color: #171717 !important;
+  border-color: #B8B5AD !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #E8E5DB !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #F1EFE8 !important;
+  color: #171717 !important;
+  border-radius: 2px !important;
+  box-shadow: 0 2px 8px rgba(23, 23, 23, 0.12) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.leaflet-popup-tip {
+  background: #F1EFE8 !important;
+}
+
+.leaflet-popup-content {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  margin: 10px 12px !important;
 }
 
 .custom-marker {
@@ -12,25 +75,70 @@
   border: none !important;
 }
 
-/* Font */
-body {
-  font-family: 'Georgia', 'Times New Roman', serif;
+/* ============ ТИПОГРАФИКА ============ */
+.font-display {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+.font-technical {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
-::-webkit-scrollbar-track {
-  background: #f5f5f4;
+/* ============ АНИМАЦИИ ============ */
+@keyframes draw-line {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #a8a29e;
-  border-radius: 3px;
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.85; }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #78716c;
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out forwards;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #B8B5AD; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #626262; }
+
+/* ============ УТИЛИТЫ ============ */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(184, 181, 173, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(184, 181, 173, 0.15) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.paper-texture {
+  background-color: #F1EFE8;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(184, 181, 173, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(184, 181, 173, 0.08) 0%, transparent 50%);
+}
+
+.route-line-glow {
+  filter: drop-shadow(0 0 2px rgba(217, 47, 47, 0.3));
 }

@@ -13,7 +13,7 @@ interface LocationSearchProps {
   selectedPoint?: GeoPoint | null;
 }
 
-export default function LocationSearch({ onSelect, placeholder = 'Введите адрес или место', selectedPoint }: LocationSearchProps) {
+export default function LocationSearch({ onSelect, placeholder = 'Адрес или место', selectedPoint }: LocationSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -21,7 +21,6 @@ export default function LocationSearch({ onSelect, placeholder = 'Введите
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Закрытие при клике вне компонента
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -32,11 +31,8 @@ export default function LocationSearch({ onSelect, placeholder = 'Введите
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Поиск с debounce
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (query.length < 3) {
       setResults([]);
@@ -48,7 +44,6 @@ export default function LocationSearch({ onSelect, placeholder = 'Введите
     
     debounceRef.current = setTimeout(async () => {
       try {
-        // Поиск только по Санкт-Петербургу
         const params = new URLSearchParams({
           q: query,
           format: 'json',
@@ -60,9 +55,7 @@ export default function LocationSearch({ onSelect, placeholder = 'Введите
         });
         
         const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-          headers: {
-            'User-Agent': 'ProitiSPB/1.0'
-          }
+          headers: { 'User-Agent': 'ProitiSPB/1.0' }
         });
         const data: SearchResult[] = await response.json();
         setResults(data);
@@ -76,9 +69,7 @@ export default function LocationSearch({ onSelect, placeholder = 'Введите
     }, 400);
 
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
 
@@ -102,69 +93,56 @@ export default function LocationSearch({ onSelect, placeholder = 'Введите
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-10 py-3 border border-stone-300 rounded-lg font-serif text-sm text-stone-700 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-blue-800/30 focus:border-blue-800 transition-all bg-white"
+          className="w-full px-4 py-3.5 bg-white border border-line-soft rounded-none font-sans text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus:border-ink transition-colors"
+          style={{ fontFamily: 'Inter, sans-serif' }}
         />
         {isSearching && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-stone-300 border-t-blue-800 rounded-full animate-spin"></div>
+            <div className="w-4 h-4 border-2 border-line border-t-ink rounded-full animate-spin"></div>
           </div>
         )}
         {query && !isSearching && (
           <button
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink transition-colors"
+            aria-label="Очистить"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         )}
       </div>
 
-      {/* Dropdown results */}
       {isOpen && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-0 bg-white border border-line-soft shadow-sm max-h-64 overflow-y-auto">
           {results.map((result, i) => (
             <button
               key={`${result.lat}-${result.lon}-${i}`}
               onClick={() => handleSelect(result)}
-              className="w-full text-left px-4 py-3 hover:bg-stone-50 border-b border-stone-50 last:border-b-0 transition-colors"
+              className="w-full text-left px-4 py-3 hover:bg-paper border-b border-line-soft/40 last:border-b-0 transition-colors"
             >
-              <div className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <div className="min-w-0">
-                  <p className="text-sm text-stone-700 truncate">
-                    {result.display_name.split(',').slice(0, 2).join(',')}
-                  </p>
-                  <p className="text-xs text-stone-400 truncate mt-0.5">
-                    {result.display_name.split(',').slice(2, 4).join(',').trim()}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm text-ink truncate">
+                {result.display_name.split(',').slice(0, 2).join(',')}
+              </p>
+              <p className="text-xs text-ink-muted truncate mt-0.5 font-mono">
+                {parseFloat(result.lat).toFixed(3)}°, {parseFloat(result.lon).toFixed(3)}°
+              </p>
             </button>
           ))}
         </div>
       )}
 
-      {/* Selected point display */}
       {selectedPoint && !isOpen && (
-        <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span>{selectedPoint.lat.toFixed(4)}, {selectedPoint.lon.toFixed(4)}</span>
+        <div className="mt-2 flex items-center gap-2 text-xs text-ink-muted font-mono">
+          <span className="w-1.5 h-1.5 bg-route"></span>
+          <span>{selectedPoint.lat.toFixed(4)}°, {selectedPoint.lon.toFixed(4)}°</span>
         </div>
       )}
     </div>
