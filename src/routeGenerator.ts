@@ -42,8 +42,8 @@ function isRouteOnKAD(geometry: [number, number][]): boolean {
       Math.pow(lon - SPB_CENTER.lon, 2)
     );
     
-    // Если точка на расстоянии 0.12-0.16 от центра — вероятно, это КАД
-    if (distFromCenter > 0.12 && distFromCenter < 0.16) {
+    // Если точка на расстоянии 0.11-0.17 от центра — вероятно, это КАД
+    if (distFromCenter > 0.11 && distFromCenter < 0.17) {
       kadPoints++;
     }
   }
@@ -51,8 +51,16 @@ function isRouteOnKAD(geometry: [number, number][]): boolean {
   const totalSampled = Math.ceil(geometry.length / sampleStep);
   const kadPercentage = kadPoints / totalSampled;
   
-  // Если больше 40% маршрута проходит по КАД — отбрасываем
-  return kadPercentage > 0.4;
+  // Если больше 20% маршрута проходит по КАД — отбрасываем
+  return kadPercentage > 0.2;
+}
+
+// Расчёт расстояния по прямой между двумя точками (в градусах)
+function straightLineDistance(p1: GeoPoint, p2: GeoPoint): number {
+  return Math.sqrt(
+    Math.pow(p1.lat - p2.lat, 2) + 
+    Math.pow(p1.lon - p2.lon, 2)
+  );
 }
 
 // Зоны для генерации точек по направлениям
@@ -77,8 +85,8 @@ function getZonesForDirection(angleDeg: number): { startZone: Zone; finishZone: 
   
   // Определяем смещение для стартовой зоны
   const rad = (angle * Math.PI) / 180;
-  const offsetLat = Math.cos(rad) * latRange * 0.6;
-  const offsetLon = Math.sin(rad) * lonRange * 0.6;
+  const offsetLat = Math.cos(rad) * latRange * 0.45; // Уменьшено с 0.6 до 0.45
+  const offsetLon = Math.sin(rad) * lonRange * 0.45;
   
   const startCenterLat = centerLat + offsetLat;
   const startCenterLon = centerLon + offsetLon;
@@ -86,7 +94,7 @@ function getZonesForDirection(angleDeg: number): { startZone: Zone; finishZone: 
   const finishCenterLat = centerLat - offsetLat;
   const finishCenterLon = centerLon - offsetLon;
   
-  const zoneRadius = 0.06; // Уменьшено с 0.08 до 0.06 (~6-7 км), чтобы не выходить на КАД
+  const zoneRadius = 0.04; // Уменьшено до 0.04 (~4-5 км), чтобы точки были ближе и маршрут не шёл по КАД
   
   return {
     startZone: {
@@ -144,6 +152,8 @@ async function fetchWalkingRoute(start: GeoPoint, finish: GeoPoint): Promise<{
   steps: RouteStep[];
 } | null> {
   try {
+    // Используем OSRM с профилем foot (пешеходный маршрут)
+    // Профиль foot по умолчанию избегает автомагистралей
     const url = `https://router.project-osrm.org/route/v1/foot/${start.lon},${start.lat};${finish.lon},${finish.lat}?overview=full&geometries=geojson&steps=true`;
     
     const response = await fetch(url);
@@ -203,7 +213,7 @@ export async function generateRoute(
   mode: 'random' | 'from-start' | 'to-finish',
   userPoint?: GeoPoint
 ): Promise<Route | null> {
-  const maxAttempts = 20; // Увеличено с 10 до 20 из-за дополнительных фильтров
+  const maxAttempts = 30; // Увеличено до 30 из-за строгих фильтров КАД
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Выбираем случайное направление
@@ -224,6 +234,13 @@ export async function generateRoute(
       finishPoint = randomInZone(finishZone);
     }
     
+    // Проверяем расстояние по прямой между точками
+    // Если слишком далеко (>0.18 градусов ≈ 20 км), OSRM будет использовать КАД
+    const directDistance = straightLineDistance(startPoint, finishPoint);
+    if (directDistance > 0.18) {
+      continue;
+    }
+    
     // Запрашиваем маршрут
     const routeData = await fetchWalkingRoute(startPoint, finishPoint);
     
@@ -233,6 +250,11 @@ export async function generateRoute(
     
     // Проверяем минимальную длину (10 км)
     if (routeData.distance < 10000) {
+      continue;
+    }
+    
+    // Проверяем максимальную длину (30 км) — если больше, вероятно использует КАД
+    if (routeData.distance > 30000) {
       continue;
     }
     
