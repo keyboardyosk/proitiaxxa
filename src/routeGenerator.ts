@@ -4,13 +4,56 @@ import { GeoPoint, Route, RouteStep } from './types';
 // Центр Санкт-Петербурга
 const SPB_CENTER = { lat: 59.9343, lon: 30.3351 };
 
-// Границы Санкт-Петербурга (приблизительные)
+// Границы Санкт-Петербурга (внутри КАД, без кольцевой)
+// КАД проходит примерно на расстоянии 10-15 км от центра
 const SPB_BOUNDS = {
-  north: 60.15,
-  south: 59.72,
-  east: 30.65,
-  west: 30.05,
+  north: 60.05,  // Было 60.15 — сдвинули южнее, чтобы не было на КАД
+  south: 59.80,  // Было 59.72 — сдвинули севернее
+  east: 30.55,   // Было 30.65 — сдвинули западнее
+  west: 30.12,   // Было 30.05 — сдвинули восточнее
 };
+
+// Проверка, что точка не слишком близко к КАД
+function isTooCloseToKAD(lat: number, lon: number): boolean {
+  // Примерная проверка расстояния от центра
+  // КАД примерно на расстоянии 0.12-0.15 градусов от центра
+  const distFromCenter = Math.sqrt(
+    Math.pow(lat - SPB_CENTER.lat, 2) + 
+    Math.pow(lon - SPB_CENTER.lon, 2)
+  );
+  
+  // Если точка слишком далеко от центра (близко к КАД или за ним)
+  return distFromCenter > 0.14;
+}
+
+// Проверка, что маршрут не идёт по КАД
+function isRouteOnKAD(geometry: [number, number][]): boolean {
+  if (geometry.length === 0) return false;
+  
+  // Подсчитываем, сколько точек маршрута находятся близко к КАД
+  // КАД — это кольцо на расстоянии ~0.12-0.15 от центра
+  let kadPoints = 0;
+  const sampleStep = Math.max(1, Math.floor(geometry.length / 100)); // Берём ~100 точек
+  
+  for (let i = 0; i < geometry.length; i += sampleStep) {
+    const [lat, lon] = geometry[i];
+    const distFromCenter = Math.sqrt(
+      Math.pow(lat - SPB_CENTER.lat, 2) + 
+      Math.pow(lon - SPB_CENTER.lon, 2)
+    );
+    
+    // Если точка на расстоянии 0.12-0.16 от центра — вероятно, это КАД
+    if (distFromCenter > 0.12 && distFromCenter < 0.16) {
+      kadPoints++;
+    }
+  }
+  
+  const totalSampled = Math.ceil(geometry.length / sampleStep);
+  const kadPercentage = kadPoints / totalSampled;
+  
+  // Если больше 40% маршрута проходит по КАД — отбрасываем
+  return kadPercentage > 0.4;
+}
 
 // Зоны для генерации точек по направлениям
 interface Zone {
@@ -43,7 +86,7 @@ function getZonesForDirection(angleDeg: number): { startZone: Zone; finishZone: 
   const finishCenterLat = centerLat - offsetLat;
   const finishCenterLon = centerLon - offsetLon;
   
-  const zoneRadius = 0.08; // Примерно 8-9 км
+  const zoneRadius = 0.06; // Уменьшено с 0.08 до 0.06 (~6-7 км), чтобы не выходить на КАД
   
   return {
     startZone: {
@@ -62,6 +105,18 @@ function getZonesForDirection(angleDeg: number): { startZone: Zone; finishZone: 
 }
 
 function randomInZone(zone: Zone): GeoPoint {
+  // Пытаемся сгенерировать точку, которая не слишком близко к КАД
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const lat = zone.minLat + Math.random() * (zone.maxLat - zone.minLat);
+    const lon = zone.minLon + Math.random() * (zone.maxLon - zone.minLon);
+    
+    if (!isTooCloseToKAD(lat, lon)) {
+      return { lat, lon };
+    }
+  }
+  
+  // Если не удалось найти подходящую точку, возвращаем последнюю попытку
   const lat = zone.minLat + Math.random() * (zone.maxLat - zone.minLat);
   const lon = zone.minLon + Math.random() * (zone.maxLon - zone.minLon);
   return { lat, lon };
@@ -148,7 +203,7 @@ export async function generateRoute(
   mode: 'random' | 'from-start' | 'to-finish',
   userPoint?: GeoPoint
 ): Promise<Route | null> {
-  const maxAttempts = 10;
+  const maxAttempts = 20; // Увеличено с 10 до 20 из-за дополнительных фильтров
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Выбираем случайное направление
@@ -178,6 +233,11 @@ export async function generateRoute(
     
     // Проверяем минимальную длину (10 км)
     if (routeData.distance < 10000) {
+      continue;
+    }
+    
+    // Проверяем, что маршрут не идёт по КАД
+    if (isRouteOnKAD(routeData.geometry)) {
       continue;
     }
     
