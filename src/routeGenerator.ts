@@ -4,26 +4,26 @@ import { GeoPoint, Route, RouteStep } from './types';
 // Центр Санкт-Петербурга
 const SPB_CENTER = { lat: 59.9343, lon: 30.3351 };
 
-// Границы Санкт-Петербурга (внутри КАД, без кольцевой)
-// Увеличены для поддержки маршрутов между ветками метро
+// Границы Санкт-Петербурга (от конечной до конечной)
+// Включают окраины с конечными станциями метро
 const SPB_BOUNDS = {
-  north: 60.08,  // Увеличено для Парнаса/Севера
-  south: 59.78,  // Увеличено для Купчино/Юга
-  east: 30.58,   // Увеличено для Правобережной/Востока
-  west: 30.10,   // Увеличено для Приморской/Запада
+  north: 60.10,  // Парнас, Проспект Просвещения
+  south: 59.76,  // Купчино, Звёздная
+  east: 30.62,   // Улица Дыбенко, Рыбацкое
+  west: 30.08,   // Приморская, Беговая
 };
 
 // Проверка, что точка не слишком близко к КАД
 function isTooCloseToKAD(lat: number, lon: number): boolean {
   // Примерная проверка расстояния от центра
-  // КАД примерно на расстоянии 0.12-0.15 градусов от центра
+  // КАД примерно на расстоянии 0.14-0.17 градусов от центра
   const distFromCenter = Math.sqrt(
     Math.pow(lat - SPB_CENTER.lat, 2) + 
     Math.pow(lon - SPB_CENTER.lon, 2)
   );
   
   // Если точка слишком далеко от центра (близко к КАД или за ним)
-  return distFromCenter > 0.16; // Увеличено для поддержки маршрутов до окраин
+  return distFromCenter > 0.18; // Увеличено для поддержки маршрутов до окраин
 }
 
 // Проверка, что маршрут не идёт по КАД
@@ -31,7 +31,7 @@ function isRouteOnKAD(geometry: [number, number][]): boolean {
   if (geometry.length === 0) return false;
   
   // Подсчитываем, сколько точек маршрута находятся близко к КАД
-  // КАД — это кольцо на расстоянии ~0.13-0.16 от центра
+  // КАД — это кольцо на расстоянии ~0.15-0.19 от центра
   let kadPoints = 0;
   const sampleStep = Math.max(1, Math.floor(geometry.length / 100)); // Берём ~100 точек
   
@@ -42,8 +42,8 @@ function isRouteOnKAD(geometry: [number, number][]): boolean {
       Math.pow(lon - SPB_CENTER.lon, 2)
     );
     
-    // Если точка на расстоянии 0.13-0.18 от центра — вероятно, это КАД
-    if (distFromCenter > 0.13 && distFromCenter < 0.18) {
+    // Если точка на расстоянии 0.15-0.20 от центра — вероятно, это КАД
+    if (distFromCenter > 0.15 && distFromCenter < 0.20) {
       kadPoints++;
     }
   }
@@ -51,8 +51,8 @@ function isRouteOnKAD(geometry: [number, number][]): boolean {
   const totalSampled = Math.ceil(geometry.length / sampleStep);
   const kadPercentage = kadPoints / totalSampled;
   
-  // Если больше 25% маршрута проходит по КАД — отбрасываем
-  return kadPercentage > 0.25;
+  // Если больше 30% маршрута проходит по КАД — отбрасываем
+  return kadPercentage > 0.30;
 }
 
 // Расчёт расстояния по прямой между двумя точками (в градусах)
@@ -84,9 +84,10 @@ function getZonesForDirection(angleDeg: number): { startZone: Zone; finishZone: 
   const lonRange = (SPB_BOUNDS.east - SPB_BOUNDS.west) / 2;
   
   // Определяем смещение для стартовой зоны
+  // Точки генерируются на окраинах (как конечные станции метро)
   const rad = (angle * Math.PI) / 180;
-  const offsetLat = Math.cos(rad) * latRange * 0.55; // Увеличено для маршрутов между ветками метро
-  const offsetLon = Math.sin(rad) * lonRange * 0.55;
+  const offsetLat = Math.cos(rad) * latRange * 0.70; // 70% от центра к краю
+  const offsetLon = Math.sin(rad) * lonRange * 0.70;
   
   const startCenterLat = centerLat + offsetLat;
   const startCenterLon = centerLon + offsetLon;
@@ -94,7 +95,7 @@ function getZonesForDirection(angleDeg: number): { startZone: Zone; finishZone: 
   const finishCenterLat = centerLat - offsetLat;
   const finishCenterLon = centerLon - offsetLon;
   
-  const zoneRadius = 0.05; // Увеличено до 0.05 (~5-6 км) для маршрутов между ветками метро
+  const zoneRadius = 0.08; // ~8 км радиус для разнообразия на окраинах
   
   return {
     startZone: {
@@ -145,18 +146,21 @@ function getDirectionName(angleDeg: number): string {
   return 'Через город';
 }
 
-// Генерация случайной промежуточной точки для разнообразия маршрутов
-function generateRandomWaypoint(start: GeoPoint, finish: GeoPoint): GeoPoint | null {
-  // 60% шанс добавить waypoint
-  if (Math.random() > 0.6) return null;
+// Генерация случайной промежуточной точки для крюков и разнообразия маршрутов
+function generateRandomWaypoint(start: GeoPoint, finish: GeoPoint, index: number): GeoPoint | null {
+  // 80% шанс добавить waypoint для создания крюков
+  if (Math.random() > 0.8) return null;
   
-  // Случайная точка между start и finish, смещённая в сторону
-  const t = 0.3 + Math.random() * 0.4; // 30-70% от расстояния
+  // Распределяем waypoints по длине маршрута
+  const t = 0.2 + (index * 0.2) + (Math.random() * 0.15); // 20-95% от расстояния
+  if (t > 0.95) return null;
+  
   const midLat = start.lat + (finish.lat - start.lat) * t;
   const midLon = start.lon + (finish.lon - start.lon) * t;
   
-  // Случайное смещение перпендикулярно маршруту
-  const offset = (Math.random() - 0.5) * 0.03; // ±1.5 км
+  // Случайное смещение перпендикулярно маршруту для создания крюков
+  // Увеличено до ±3 км для более выраженных отклонений
+  const offset = (Math.random() - 0.5) * 0.06;
   const angle = Math.atan2(finish.lon - start.lon, finish.lat - start.lat);
   const perpAngle = angle + Math.PI / 2;
   
@@ -178,16 +182,27 @@ async function fetchWalkingRoute(start: GeoPoint, finish: GeoPoint): Promise<{
   steps: RouteStep[];
 } | null> {
   try {
-    // Генерируем 1-2 случайных waypoint для разнообразия
+    // Генерируем 1-3 случайных waypoint для крюков и разнообразия
     const waypoints: GeoPoint[] = [];
-    const wp1 = generateRandomWaypoint(start, finish);
+    
+    // Первый waypoint (20-40% от маршрута)
+    const wp1 = generateRandomWaypoint(start, finish, 0);
     if (wp1) waypoints.push(wp1);
     
-    // Второй waypoint с 40% шансом
-    if (Math.random() < 0.4) {
-      const wp2 = generateRandomWaypoint(start, finish);
-      if (wp2 && (!wp1 || Math.abs(wp2.lat - wp1.lat) > 0.01 || Math.abs(wp2.lon - wp1.lon) > 0.01)) {
-        waypoints.push(wp2);
+    // Второй waypoint (40-60% от маршрута)
+    const wp2 = generateRandomWaypoint(start, finish, 1);
+    if (wp2 && (!wp1 || Math.abs(wp2.lat - wp1.lat) > 0.015 || Math.abs(wp2.lon - wp1.lon) > 0.015)) {
+      waypoints.push(wp2);
+    }
+    
+    // Третий waypoint с 50% шансом (60-80% от маршрута)
+    if (Math.random() < 0.5) {
+      const wp3 = generateRandomWaypoint(start, finish, 2);
+      if (wp3) {
+        const tooClose = waypoints.some(wp => 
+          Math.abs(wp3.lat - wp.lat) < 0.015 && Math.abs(wp3.lon - wp.lon) < 0.015
+        );
+        if (!tooClose) waypoints.push(wp3);
       }
     }
     
@@ -257,7 +272,7 @@ export async function generateRoute(
   mode: 'random' | 'from-start' | 'to-finish',
   userPoint?: GeoPoint
 ): Promise<Route | null> {
-  const maxAttempts = 30; // Увеличено до 30 из-за строгих фильтров КАД
+  const maxAttempts = 40; // Увеличено до 40 из-за расширенных границ и крюков
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Выбираем случайное направление
@@ -279,9 +294,9 @@ export async function generateRoute(
     }
     
     // Проверяем расстояние по прямой между точками
-    // Если слишком далеко (>0.22 градусов ≈ 25 км), OSRM будет использовать КАД
+    // От конечки до конечки ≈ 0.25-0.30 градусов
     const directDistance = straightLineDistance(startPoint, finishPoint);
-    if (directDistance > 0.22) {
+    if (directDistance > 0.32) {
       continue;
     }
     
@@ -297,8 +312,8 @@ export async function generateRoute(
       continue;
     }
     
-    // Проверяем максимальную длину (35 км) — если больше, вероятно использует КАД
-    if (routeData.distance > 35000) {
+    // Максимальная длина 45 км — от конечки до конечки с крюками
+    if (routeData.distance > 45000) {
       continue;
     }
     
