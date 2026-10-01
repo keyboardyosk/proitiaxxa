@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Route, GenerationMode, GeoPoint } from './types';
 import { generateRoute, formatDistance, formatDuration } from './routeGenerator';
 import RouteMap from './RouteMap';
 import { generatePDF } from './pdfGenerator';
 import PointPicker from './PointPicker';
 import BrandMark from './BrandMark';
+import html2canvas from 'html2canvas';
 
 type Screen = 'landing' | 'route' | 'loading' | 'pick-start' | 'pick-finish';
 
@@ -26,6 +27,8 @@ function App() {
     point: GeoPoint;
     mode: 'from-start' | 'to-finish';
   } | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   
   const handleGenerate = useCallback(async (mode: GenerationMode = 'random', userPoint?: GeoPoint) => {
     setScreen('loading');
@@ -85,8 +88,34 @@ function App() {
     }
   }, [savedUserPoint]);
   
-  const handleDownloadPDF = useCallback(() => {
-    if (route) generatePDF(route);
+  const handleDownloadPDF = useCallback(async () => {
+    if (!route) return;
+    
+    setIsGeneratingPDF(true);
+    
+    try {
+      let mapImage: string | undefined;
+      
+      // Захватываем изображение карты, если контейнер доступен
+      if (mapContainerRef.current) {
+        const canvas = await html2canvas(mapContainerRef.current, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 2,
+          backgroundColor: '#E8E5DB',
+          logging: false,
+        });
+        mapImage = canvas.toDataURL('image/jpeg', 0.92);
+      }
+      
+      generatePDF(route, mapImage);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      // В случае ошибки генерируем PDF без карты
+      generatePDF(route);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   }, [route]);
   
   const handleBack = useCallback(() => {
@@ -193,12 +222,19 @@ function App() {
             
             <button
               onClick={handleDownloadPDF}
-              className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-[10px] uppercase tracking-[0.2em]"
+              disabled={isGeneratingPDF}
+              className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-[10px] uppercase tracking-[0.2em] disabled:opacity-50"
             >
-              <span className="hidden sm:inline">PDF</span>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              {isGeneratingPDF ? (
+                <div className="w-3.5 h-3.5 border border-ink-muted border-t-ink rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">PDF</span>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </>
+              )}
             </button>
           </div>
         </header>
@@ -207,7 +243,7 @@ function App() {
         <div className="flex-1 flex flex-col lg:flex-row">
           {/* Карта */}
           <div className="lg:w-3/5 relative" style={{ height: '50vh', minHeight: '360px' }}>
-            <div className="absolute inset-0 lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px)]">
+            <div ref={mapContainerRef} className="absolute inset-0 lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px)]">
               <RouteMap route={route} />
               
               {/* Оверлей с номером маршрута на карте */}
@@ -352,12 +388,22 @@ function App() {
                 
                 <button
                   onClick={handleDownloadPDF}
-                  className="w-full px-6 py-3 bg-paper border border-line-soft text-ink font-technical text-[10px] uppercase tracking-[0.15em] hover:bg-paper-dark transition-colors flex items-center justify-center gap-2"
+                  disabled={isGeneratingPDF}
+                  className="w-full px-6 py-3 bg-paper border border-line-soft text-ink font-technical text-[10px] uppercase tracking-[0.15em] hover:bg-paper-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Скачать PDF
+                  {isGeneratingPDF ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border border-ink-muted border-t-ink rounded-full animate-spin"></div>
+                      Подготовка PDF...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Скачать PDF
+                    </>
+                  )}
                 </button>
               </div>
               

@@ -2,7 +2,7 @@ import html2pdf from 'html2pdf.js';
 import { Route } from './types';
 import { formatDistance, formatDuration } from './routeGenerator';
 
-export function generatePDF(route: Route): void {
+export function generatePDF(route: Route, mapImage?: string): void {
   // Создаём контейнер для рендеринга
   const container = document.createElement('div');
   container.style.width = '210mm';
@@ -121,7 +121,63 @@ export function generatePDF(route: Route): void {
       </div>
     </div>
     
-    <!-- СТРАНИЦА 2: МАРШРУТНЫЙ ЛИСТ -->
+    <!-- СТРАНИЦА 2: КАРТА -->
+    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
+      
+      <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
+        <!-- Заголовок -->
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5mm;">
+          <div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; letter-spacing: 0.15em;">ПЕЧАТНАЯ КАРТА</div>
+            <div style="font-size: 16pt; font-weight: 700; color: #171717; margin-top: 2mm;">Маршрут №${routeNum}</div>
+          </div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9pt; color: #626262; text-align: right;">
+            <div>${route.direction}</div>
+            <div style="margin-top: 1mm;">${formatDistance(route.distanceMeters)}</div>
+          </div>
+        </div>
+        
+        <!-- Карта -->
+        <div style="flex: 1; position: relative; border: 0.3mm solid #B8B5AD; overflow: hidden; background: #E8E5DB;">
+          ${mapImage 
+            ? `<img src="${mapImage}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />`
+            : `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-family: 'JetBrains Mono', monospace; font-size: 10pt; color: #626262;">
+                Карта недоступна
+               </div>`
+          }
+        </div>
+        
+        <!-- Легенда -->
+        <div style="margin-top: 4mm; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 5mm; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 1.5mm;">
+              <div style="width: 3mm; height: 3mm; background: #171717;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; letter-spacing: 0.1em;">A · СТАРТ</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1.5mm;">
+              <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; letter-spacing: 0.1em;">B · ФИНИШ</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1.5mm;">
+              <div style="width: 8mm; height: 0.8mm; background: #D92F2F;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262; letter-spacing: 0.1em;">МАРШРУТ</span>
+            </div>
+          </div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262;">
+            © OpenStreetMap
+          </div>
+        </div>
+        
+        <!-- Координаты -->
+        <div style="margin-top: 3mm; display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #626262;">
+          <span>A: ${route.start.lat.toFixed(4)}°N, ${route.start.lon.toFixed(4)}°E</span>
+          <span>B: ${route.finish.lat.toFixed(4)}°N, ${route.finish.lon.toFixed(4)}°E</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- СТРАНИЦА 3: МАРШРУТНЫЙ ЛИСТ -->
     <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
       
