@@ -65,10 +65,11 @@ export default function RouteMap({ route, interactive = true }: RouteMapProps) {
       doubleClickZoom={interactive}
       touchZoom={interactive}
     >
-      {/* Приглушённая монохромная карта — акцент на маршруте */}
+      {/* Монохромная карта — акцент на маршруте */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maxZoom={19}
       />
       
       {/* Тонкая «тень» маршрута для глубины */}

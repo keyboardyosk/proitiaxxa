@@ -103,8 +103,9 @@ export default function PointPicker({ mode, onSelect, onCancel }: PointPickerPro
           style={{ minHeight: 'calc(100vh - 280px)' }}
         >
           <TileLayer
-            attribution='&copy; OpenStreetMap &copy; CARTO'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
           />
           <MapClickHandler onMapClick={handlePointSelect} />
           <FlyToPoint point={selectedPoint} />
