@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Route } from './types';
 import { formatDistance, formatDuration } from './routeGenerator';
-import { loadCyrillicFont } from './pdfFont';
 
 export async function generatePDF(route: Route, mapImages?: string[]): Promise<void> {
   const routeNum = String(route.routeNumber).padStart(5, '0');
@@ -9,392 +9,256 @@ export async function generatePDF(route: Route, mapImages?: string[]): Promise<v
   const finishName = route.finish.name || `${route.finish.lat.toFixed(4)}, ${route.finish.lon.toFixed(4)}`;
   
   const pdf = new jsPDF('p', 'mm', 'a4');
-  
-  // Загружаем шрифт с поддержкой кириллицы
-  await loadCyrillicFont(pdf);
-  
   const pageWidth = 210;
   const pageHeight = 297;
-  const margin = 18;
   
-  // Цвета
-  const INK = [23, 23, 23] as const;
-  const MUTED = [98, 98, 98] as const;
-  const ROUTE = [217, 47, 47] as const;
-  const PAPER = [241, 239, 232] as const;
+  // Создаём контейнер для рендеринга HTML
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = `${pageWidth}mm`;
+  container.style.fontFamily = 'Inter, sans-serif';
+  document.body.appendChild(container);
+  
+  // Функция для рендеринга HTML страницы в PDF
+  const renderPage = async (html: string) => {
+    container.innerHTML = html;
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#F1EFE8',
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+  };
   
   // ========== СТРАНИЦА 1: ОБЛОЖКА ==========
-  pdf.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
-  pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+  const coverHtml = `
+    <div style="width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; position: relative;">
+      <div style="position: absolute; top: 18mm; left: 18mm; right: 18mm; bottom: 18mm; border: 0.3mm solid #B8B5AD;"></div>
+      <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; font-size: 8pt; color: #626262;">
+          <span>59.9°N · 30.3°E · САНКТ-ПЕТЕРБУРГ</span>
+          <span>EST. 2026</span>
+        </div>
+        <div style="margin-top: 25mm; display: flex; align-items: center; gap: 2mm;">
+          <div style="width: 4mm; height: 4mm; background: #171717;"></div>
+          <div style="flex: 1; height: 0.5mm; background: #171717;"></div>
+          <div style="width: 4mm; height: 4mm; border-radius: 50%; background: #D92F2F;"></div>
+        </div>
+        <div style="margin-top: 25mm; text-align: center;">
+          <div style="font-size: 54pt; font-weight: 800; color: #171717;">ПРОЙТИ</div>
+          <div style="font-size: 28pt; font-weight: 800; color: #171717; margin-top: 5mm;">САНКТ-ПЕТЕРБУРГЪ</div>
+        </div>
+        <div style="margin-top: 10mm; width: 60mm; height: 0.3mm; background: #B8B5AD; margin-left: auto; margin-right: auto;"></div>
+        <div style="margin-top: 10mm; text-align: center;">
+          <div style="font-size: 10pt; color: #626262;">МАРШРУТ</div>
+          <div style="font-size: 48pt; font-weight: 700; color: #171717; margin-top: 3mm;">№${routeNum}</div>
+        </div>
+        <div style="margin-top: 10mm; text-align: center;">
+          <div style="font-size: 11pt; color: #626262;">НАПРАВЛЕНИЕ</div>
+          <div style="font-size: 16pt; font-weight: 700; color: #171717; margin-top: 2mm;">${route.direction}</div>
+        </div>
+        <div style="margin-top: 12mm; text-align: center;">
+          <div style="font-size: 10pt; color: #626262;">РАССТОЯНИЕ</div>
+          <div style="margin-top: 3mm;">
+            <span style="font-size: 42pt; font-weight: 700; color: #D92F2F;">${(route.distanceMeters / 1000).toFixed(1)}</span>
+            <span style="font-size: 20pt; font-weight: 700; color: #D92F2F; margin-left: 2mm;">КМ</span>
+          </div>
+        </div>
+        <div style="margin-top: 15mm;">
+          <div style="margin-bottom: 4mm;">
+            <div style="font-size: 9pt; color: #626262;">СТАРТ</div>
+            <div style="display: flex; align-items: center; gap: 2mm; margin-top: 1mm;">
+              <div style="width: 3mm; height: 3mm; background: #171717;"></div>
+              <div style="font-size: 11pt; font-weight: 700; color: #171717;">${startName.substring(0, 50)}</div>
+            </div>
+            <div style="font-size: 8pt; color: #D92F2F; margin-top: 1mm; margin-left: 5mm;">${route.start.lat.toFixed(5)}, ${route.start.lon.toFixed(5)}</div>
+          </div>
+          <div>
+            <div style="font-size: 9pt; color: #626262;">ФИНИШ</div>
+            <div style="display: flex; align-items: center; gap: 2mm; margin-top: 1mm;">
+              <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+              <div style="font-size: 11pt; font-weight: 700; color: #171717;">${finishName.substring(0, 50)}</div>
+            </div>
+            <div style="font-size: 8pt; color: #D92F2F; margin-top: 1mm; margin-left: 5mm;">${route.finish.lat.toFixed(5)}, ${route.finish.lon.toFixed(5)}</div>
+          </div>
+        </div>
+        <div style="margin-top: auto; display: flex; justify-content: space-between; font-size: 9pt; color: #626262;">
+          <span>≈ ВРЕМЯ В ПУТИ · ${formatDuration(route.durationSeconds)}</span>
+          <span>${route.createdAt.toLocaleDateString('ru-RU')}</span>
+        </div>
+        <div style="margin-top: 5mm; text-align: center; font-style: italic; font-size: 10pt; color: #626262;">Не гулять. Пересечь город.</div>
+      </div>
+    </div>
+  `;
   
-  // Рамка
-  pdf.setDrawColor(184, 181, 173);
-  pdf.setLineWidth(0.3);
-  pdf.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
-  
-  // Верхняя информация
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('59.9°N · 30.3°E · САНКТ-ПЕТЕРБУРГ', margin + 10, margin + 10);
-  pdf.text('EST. 2026', pageWidth - margin - 10, margin + 10, { align: 'right' });
-  
-  // Логотип
-  const logoY = margin + 25;
-  pdf.setFillColor(INK[0], INK[1], INK[2]);
-  pdf.rect(margin + 10, logoY, 4, 4, 'F');
-  pdf.setDrawColor(INK[0], INK[1], INK[2]);
-  pdf.setLineWidth(0.5);
-  pdf.line(margin + 14, logoY + 2, pageWidth - margin - 14, logoY + 2);
-  pdf.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.circle(pageWidth - margin - 12, logoY + 2, 2, 'F');
-  
-  // Заголовок
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(54);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text('ПРОЙТИ', pageWidth / 2, 90, { align: 'center' });
-  
-  pdf.setFontSize(28);
-  pdf.text('САНКТ-ПЕТЕРБУРГЪ', pageWidth / 2, 105, { align: 'center' });
-  
-  // Разделитель
-  pdf.setDrawColor(184, 181, 173);
-  pdf.setLineWidth(0.3);
-  pdf.line(pageWidth / 2 - 30, 115, pageWidth / 2 + 30, 115);
-  
-  // Номер маршрута
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(10);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('МАРШРУТ', pageWidth / 2, 130, { align: 'center' });
-  
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(48);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(`№${routeNum}`, pageWidth / 2, 150, { align: 'center' });
-  
-  // Направление
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(11);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('НАПРАВЛЕНИЕ', pageWidth / 2, 165, { align: 'center' });
-  
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(16);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(route.direction, pageWidth / 2, 175, { align: 'center' });
-  
-  // Расстояние
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(10);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('РАССТОЯНИЕ', pageWidth / 2, 190, { align: 'center' });
-  
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(42);
-  pdf.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.text(`${(route.distanceMeters / 1000).toFixed(1)}`, pageWidth / 2 - 10, 210, { align: 'right' });
-  pdf.setFontSize(20);
-  pdf.text('КМ', pageWidth / 2 - 5, 210, { align: 'left' });
-  
-  // Старт
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('СТАРТ', margin + 10, 230);
-  
-  pdf.setFillColor(INK[0], INK[1], INK[2]);
-  pdf.rect(margin + 10, 233, 3, 3, 'F');
-  
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(11);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(startName.substring(0, 50), margin + 16, 236);
-  
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.text(`${route.start.lat.toFixed(5)}, ${route.start.lon.toFixed(5)}`, margin + 15, 241);
-  
-  // Финиш
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('ФИНИШ', margin + 10, 250);
-  
-  pdf.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.circle(margin + 11.5, 254, 1.5, 'F');
-  
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(11);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(finishName.substring(0, 50), margin + 16, 255);
-  
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.text(`${route.finish.lat.toFixed(5)}, ${route.finish.lon.toFixed(5)}`, margin + 15, 260);
-  
-  // Время и дата
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text(`≈ ВРЕМЯ В ПУТИ · ${formatDuration(route.durationSeconds)}`, margin + 10, 270);
-  pdf.text(route.createdAt.toLocaleDateString('ru-RU'), pageWidth - margin - 10, 270, { align: 'right' });
-  
-  // Слоган
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(10);
-  pdf.text('Не гулять. Пересечь город.', pageWidth / 2, 278, { align: 'center' });
+  await renderPage(coverHtml);
   
   // ========== СТРАНИЦЫ КАРТ (если есть) ==========
   if (mapImages && mapImages.length > 0) {
     for (let i = 0; i < mapImages.length; i++) {
       const mapImage = mapImages[i];
       pdf.addPage();
-      pdf.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
-      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
       
-      pdf.setDrawColor(184, 181, 173);
-      pdf.setLineWidth(0.3);
-      pdf.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
+      const mapHtml = `
+        <div style="width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; position: relative;">
+          <div style="position: absolute; top: 18mm; left: 18mm; right: 18mm; bottom: 18mm; border: 0.3mm solid #B8B5AD;"></div>
+          <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5mm;">
+              <div>
+                <div style="font-size: 9pt; color: #626262;">${mapImages.length > 1 ? `ПЕЧАТНАЯ КАРТА · ${i + 1}/${mapImages.length}` : 'ПЕЧАТНАЯ КАРТА'}</div>
+                <div style="font-size: 16pt; font-weight: 700; color: #171717; margin-top: 2mm;">Маршрут №${routeNum}</div>
+              </div>
+              <div style="font-size: 9pt; color: #626262; text-align: right;">
+                <div>${route.direction}</div>
+                <div style="margin-top: 1mm;">${formatDistance(route.distanceMeters)}</div>
+              </div>
+            </div>
+            <div style="flex: 1; position: relative; border: 0.3mm solid #B8B5AD; overflow: hidden; background: #E8E5DB; height: 180mm;">
+              <img src="${mapImage}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            </div>
+            <div style="margin-top: 4mm; display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; gap: 5mm; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 1.5mm;">
+                  <div style="width: 3mm; height: 3mm; background: #171717;"></div>
+                  <span style="font-size: 8pt; color: #626262;">A · СТАРТ</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1.5mm;">
+                  <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+                  <span style="font-size: 8pt; color: #626262;">B · ФИНИШ</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1.5mm;">
+                  <div style="width: 8mm; height: 0.8mm; background: #D92F2F;"></div>
+                  <span style="font-size: 8pt; color: #626262;">МАРШРУТ</span>
+                </div>
+              </div>
+              <div style="font-size: 8pt; color: #626262;">© OpenStreetMap</div>
+            </div>
+          </div>
+        </div>
+      `;
       
-      // Заголовок
-      pdf.setFont('OpenSans', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      pdf.text(mapImages.length > 1 ? `ПЕЧАТНАЯ КАРТА · ${i + 1}/${mapImages.length}` : 'ПЕЧАТНАЯ КАРТА', margin + 10, margin + 10);
-      
-      pdf.setFont('OpenSans', 'bold');
-      pdf.setFontSize(16);
-      pdf.setTextColor(INK[0], INK[1], INK[2]);
-      pdf.text(`Маршрут №${routeNum}`, margin + 10, margin + 18);
-      
-      pdf.setFont('OpenSans', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      pdf.text(route.direction, pageWidth - margin - 10, margin + 10, { align: 'right' });
-      pdf.text(formatDistance(route.distanceMeters), pageWidth - margin - 10, margin + 18, { align: 'right' });
-      
-      // Карта
-      try {
-        pdf.addImage(mapImage, 'JPEG', margin + 10, margin + 25, pageWidth - margin * 2 - 20, 180);
-      } catch (err) {
-        console.error('Error adding map image:', err);
-      }
-      
-      // Легенда
-      const legendY = margin + 210;
-      
-      pdf.setFillColor(INK[0], INK[1], INK[2]);
-      pdf.rect(margin + 10, legendY, 3, 3, 'F');
-      pdf.setFont('OpenSans', 'normal');
-      pdf.setFontSize(8);
-      pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      pdf.text('A · СТАРТ', margin + 15, legendY + 2);
-      
-      pdf.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-      pdf.circle(margin + 40, legendY + 1.5, 1.5, 'F');
-      pdf.text('B · ФИНИШ', margin + 44, legendY + 2);
-      
-      pdf.setDrawColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-      pdf.setLineWidth(0.8);
-      pdf.line(margin + 70, legendY + 1.5, margin + 78, legendY + 1.5);
-      pdf.text('МАРШРУТ', margin + 80, legendY + 2);
-      
-      pdf.text('© OpenStreetMap', pageWidth - margin - 10, legendY + 2, { align: 'right' });
+      await renderPage(mapHtml);
     }
   }
   
   // ========== СТРАНИЦА 3: МАРШРУТНЫЙ ЛИСТ ==========
   pdf.addPage();
-  pdf.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
-  pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-  
-  pdf.setDrawColor(184, 181, 173);
-  pdf.setLineWidth(0.3);
-  pdf.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
-  
-  // Заголовок
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('МАРШРУТНЫЙ ЛИСТ', margin + 10, margin + 10);
-  pdf.text(`№${routeNum}`, pageWidth - margin - 10, margin + 10, { align: 'right' });
-  
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(18);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(route.direction, margin + 10, margin + 20);
-  
-  pdf.setDrawColor(INK[0], INK[1], INK[2]);
-  pdf.setLineWidth(0.3);
-  pdf.line(margin + 10, margin + 23, pageWidth - margin - 10, margin + 23);
-  
-  // Старт
-  pdf.setFillColor(INK[0], INK[1], INK[2]);
-  pdf.rect(margin + 10, margin + 27, 2.5, 2.5, 'F');
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text('A · СТАРТ', margin + 15, margin + 29);
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(10);
-  pdf.text(startName.substring(0, 50), pageWidth - margin - 10, margin + 29, { align: 'right' });
-  
-  pdf.line(margin + 10, margin + 33, pageWidth - margin - 10, margin + 33);
-  
-  // Путь
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('ПУТЬ', margin + 10, margin + 38);
   
   const allSteps = route.steps.filter(s => s.distance > 10).slice(0, 60);
-  let y = margin + 43;
-  
-  for (let i = 0; i < allSteps.length; i++) {
-    const step = allSteps[i];
+  const stepsHtml = allSteps.map((step, i) => {
     const num = String(i + 1).padStart(2, '0');
     const dist = step.distance >= 1000 ? `${(step.distance / 1000).toFixed(1)} км` : `${Math.round(step.distance)} м`;
-    
-    pdf.setFont('OpenSans', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    pdf.text(num, margin + 10, y);
-    
-    pdf.setFont('OpenSans', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(INK[0], INK[1], INK[2]);
     const stepName = (step.name || 'Продолжайте движение').substring(0, 60);
-    pdf.text(stepName, margin + 18, y);
-    
-    pdf.setFont('OpenSans', 'normal');
-    pdf.setFontSize(7);
-    pdf.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-    pdf.text(dist, pageWidth - margin - 10, y, { align: 'right' });
-    
-    y += 4;
-    
-    if (y > pageHeight - margin - 30) {
-      break;
-    }
-  }
+    return `
+      <div style="display: flex; align-items: baseline; gap: 3mm; margin-bottom: 2mm;">
+        <div style="font-size: 8pt; color: #626262; width: 6mm; flex-shrink: 0;">${num}</div>
+        <div style="flex: 1;">
+          <div style="font-size: 9pt; color: #171717;">${stepName}</div>
+          <div style="display: flex; gap: 3mm; margin-top: 0.5mm;">
+            <span style="font-size: 7pt; color: #D92F2F;">${dist}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
   
-  // Финиш
-  y += 3;
-  pdf.setDrawColor(INK[0], INK[1], INK[2]);
-  pdf.line(margin + 10, y, pageWidth - margin - 10, y);
-  y += 4;
+  const routeHtml = `
+    <div style="width: 210mm; min-height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; position: relative;">
+      <div style="position: absolute; top: 18mm; left: 18mm; right: 18mm; bottom: 18mm; border: 0.3mm solid #B8B5AD;"></div>
+      <div style="position: relative; z-index: 1;">
+        <div style="display: flex; justify-content: space-between; font-size: 9pt; color: #626262; margin-bottom: 5mm;">
+          <span>МАРШРУТНЫЙ ЛИСТ</span>
+          <span>№${routeNum}</span>
+        </div>
+        <div style="font-size: 18pt; font-weight: 700; color: #171717; margin-bottom: 5mm;">${route.direction}</div>
+        <div style="border-top: 0.3mm solid #171717; padding-top: 2mm; margin-bottom: 3mm;"></div>
+        <div style="display: flex; align-items: center; gap: 2mm; margin-bottom: 3mm;">
+          <div style="width: 2.5mm; height: 2.5mm; background: #171717;"></div>
+          <div style="font-size: 9pt; font-weight: 700; color: #171717;">A · СТАРТ</div>
+          <div style="flex: 1;"></div>
+          <div style="font-size: 10pt; color: #171717;">${startName.substring(0, 50)}</div>
+        </div>
+        <div style="border-top: 0.3mm solid #171717; padding-top: 2mm; margin-bottom: 3mm;"></div>
+        <div style="font-size: 8pt; color: #626262; margin-bottom: 2mm;">ПУТЬ</div>
+        <div style="margin-bottom: 5mm;">${stepsHtml}</div>
+        <div style="border-top: 0.3mm solid #171717; padding-top: 2mm; margin-bottom: 3mm;"></div>
+        <div style="display: flex; align-items: center; gap: 2mm; margin-bottom: 5mm;">
+          <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+          <div style="font-size: 9pt; font-weight: 700; color: #D92F2F;">B · ФИНИШ</div>
+          <div style="flex: 1;"></div>
+          <div style="font-size: 10pt; color: #171717;">${finishName.substring(0, 50)}</div>
+        </div>
+        <div style="border-top: 0.3mm solid #B8B5AD; padding-top: 3mm;"></div>
+        <div style="display: flex; gap: 10mm; margin-top: 3mm;">
+          <div>
+            <div style="font-size: 9pt; color: #626262;">ИТОГО</div>
+            <div style="font-size: 14pt; font-weight: 700; color: #171717; margin-top: 1mm;">${formatDistance(route.distanceMeters)}</div>
+          </div>
+          <div>
+            <div style="font-size: 9pt; color: #626262;">≈ ВРЕМЯ</div>
+            <div style="font-size: 14pt; font-weight: 700; color: #171717; margin-top: 1mm;">${formatDuration(route.durationSeconds)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
   
-  pdf.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.circle(margin + 11.5, y + 1.5, 1.5, 'F');
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.text('B · ФИНИШ', margin + 15, y + 2);
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(10);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(finishName.substring(0, 50), pageWidth - margin - 10, y + 2, { align: 'right' });
-  
-  // Итог
-  y += 8;
-  pdf.setDrawColor(184, 181, 173);
-  pdf.line(margin + 10, y, pageWidth - margin - 10, y);
-  y += 5;
-  
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('ИТОГО', margin + 10, y);
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(14);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(formatDistance(route.distanceMeters), margin + 30, y);
-  
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('≈ ВРЕМЯ', pageWidth / 2, y);
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(14);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text(formatDuration(route.durationSeconds), pageWidth / 2 + 22, y);
+  await renderPage(routeHtml);
   
   // ========== СТРАНИЦА 4: ЛИСТ ПРОХОЖДЕНИЯ ==========
   pdf.addPage();
-  pdf.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
-  pdf.rect(0, 0, pageWidth, pageHeight, 'F');
   
-  pdf.setDrawColor(184, 181, 173);
-  pdf.setLineWidth(0.3);
-  pdf.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
+  const passHtml = `
+    <div style="width: 210mm; min-height: 297mm; padding: 18mm; box-sizing: border-box; background: #F1EFE8; position: relative;">
+      <div style="position: absolute; top: 18mm; left: 18mm; right: 18mm; bottom: 18mm; border: 0.3mm solid #B8B5AD;"></div>
+      <div style="position: relative; z-index: 1;">
+        <div style="display: flex; justify-content: space-between; font-size: 9pt; color: #626262; margin-bottom: 5mm;">
+          <span>ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ</span>
+          <span>№${routeNum}</span>
+        </div>
+        <div style="text-align: center; font-size: 22pt; font-weight: 700; color: #171717; margin-bottom: 8mm;">МАРШРУТ ПРОЙДЕН</div>
+        <div style="display: flex; justify-content: center; margin-bottom: 15mm;">
+          <div style="display: flex; align-items: center; gap: 2mm;">
+            <div style="width: 3mm; height: 3mm; background: #171717;"></div>
+            <div style="width: 40mm; height: 0.4mm; background: #171717;"></div>
+            <div style="width: 3mm; height: 3mm; border-radius: 50%; background: #D92F2F;"></div>
+          </div>
+        </div>
+        <div style="margin-bottom: 8mm;">
+          <div style="font-size: 9pt; color: #626262; margin-bottom: 2mm;">ДАТА</div>
+          <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+        </div>
+        <div style="display: flex; gap: 10mm; margin-bottom: 8mm;">
+          <div style="flex: 1;">
+            <div style="font-size: 9pt; color: #626262; margin-bottom: 2mm;">ВРЕМЯ СТАРТА</div>
+            <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 9pt; color: #626262; margin-bottom: 2mm;">ВРЕМЯ ФИНИША</div>
+            <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+          </div>
+        </div>
+        <div style="margin-bottom: 10mm;">
+          <div style="font-size: 9pt; color: #626262; margin-bottom: 2mm;">ФАКТИЧЕСКОЕ ВРЕМЯ</div>
+          <div style="border-bottom: 0.3mm solid #B8B5AD; height: 8mm;"></div>
+        </div>
+        <div style="margin-bottom: 5mm;">
+          <div style="font-size: 9pt; color: #626262; margin-bottom: 3mm;">ЗАМЕТКИ</div>
+          ${Array(7).fill(0).map(() => `<div style="border-bottom: 0.2mm solid #B8B5AD; height: 8mm;"></div>`).join('')}
+        </div>
+        <div style="text-align: center; font-style: italic; font-size: 9pt; color: #626262; margin-top: 10mm;">Не гулять. Пересечь город.</div>
+      </div>
+    </div>
+  `;
   
-  // Заголовок
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('ФИЗИЧЕСКИЙ МАРШРУТНЫЙ ЛИСТ', margin + 10, margin + 10);
-  pdf.text(`№${routeNum}`, pageWidth - margin - 10, margin + 10, { align: 'right' });
+  await renderPage(passHtml);
   
-  pdf.setFont('OpenSans', 'bold');
-  pdf.setFontSize(22);
-  pdf.setTextColor(INK[0], INK[1], INK[2]);
-  pdf.text('МАРШРУТ ПРОЙДЕН', pageWidth / 2, margin + 25, { align: 'center' });
-  
-  // Символ
-  pdf.setFillColor(INK[0], INK[1], INK[2]);
-  pdf.rect(pageWidth / 2 - 20, margin + 35, 3, 3, 'F');
-  pdf.setDrawColor(INK[0], INK[1], INK[2]);
-  pdf.setLineWidth(0.4);
-  pdf.line(pageWidth / 2 - 17, margin + 36.5, pageWidth / 2 + 17, margin + 36.5);
-  pdf.setFillColor(ROUTE[0], ROUTE[1], ROUTE[2]);
-  pdf.circle(pageWidth / 2 + 18.5, margin + 36.5, 1.5, 'F');
-  
-  // Поля для заполнения
-  let passY = margin + 55;
-  
-  const fields = [
-    { label: 'ДАТА', width: pageWidth - margin * 2 - 20 },
-    { label: 'ВРЕМЯ СТАРТА', width: (pageWidth - margin * 2 - 30) / 2 },
-    { label: 'ВРЕМЯ ФИНИША', width: (pageWidth - margin * 2 - 30) / 2 },
-    { label: 'ФАКТИЧЕСКОЕ ВРЕМЯ', width: pageWidth - margin * 2 - 20 },
-  ];
-  
-  for (const field of fields) {
-    pdf.setFont('OpenSans', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    pdf.text(field.label, margin + 10, passY);
-    passY += 3;
-    pdf.setDrawColor(184, 181, 173);
-    pdf.setLineWidth(0.3);
-    pdf.line(margin + 10, passY + 5, margin + 10 + field.width, passY + 5);
-    passY += 14;
-  }
-  
-  // Заметки
-  passY += 5;
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('ЗАМЕТКИ', margin + 10, passY);
-  passY += 5;
-  
-  for (let i = 0; i < 7; i++) {
-    pdf.setDrawColor(184, 181, 173);
-    pdf.setLineWidth(0.2);
-    pdf.line(margin + 10, passY, pageWidth - margin - 10, passY);
-    passY += 8;
-  }
-  
-  // Слоган
-  pdf.setFont('OpenSans', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-  pdf.text('Не гулять. Пересечь город.', pageWidth / 2, pageHeight - margin - 5, { align: 'center' });
+  // Удаляем контейнер
+  document.body.removeChild(container);
   
   // Сохраняем PDF
   pdf.save(`proiti-spb-${routeNum}.pdf`);
