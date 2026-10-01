@@ -3,11 +3,11 @@ import jsPDF from 'jspdf';
 // Загрузка шрифта с поддержкой полной кириллицы
 export async function loadCyrillicFont(pdf: jsPDF): Promise<void> {
   try {
-    // Используем Roboto из надёжного источника
-    const fontRegularUrl = 'https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto%5Bwdth%2Cwght%5D.ttf';
-    const fontBoldUrl = 'https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto%5Bwdth%2Cwght%5D.ttf';
+    // Используем Open Sans с поддержкой кириллицы
+    const fontRegularUrl = 'https://raw.githubusercontent.com/google/fonts/main/apache/opensans/static/OpenSans-Regular.ttf';
+    const fontBoldUrl = 'https://raw.githubusercontent.com/google/fonts/main/apache/opensans/static/OpenSans-Bold.ttf';
     
-    console.log('Loading font...');
+    console.log('Loading Open Sans font...');
     
     // Загружаем обычный шрифт
     const responseRegular = await fetch(fontRegularUrl);
@@ -18,7 +18,7 @@ export async function loadCyrillicFont(pdf: jsPDF): Promise<void> {
     const bufferRegular = await responseRegular.arrayBuffer();
     const uint8ArrayRegular = new Uint8Array(bufferRegular);
     
-    // Конвертируем в base64 более эффективно
+    // Конвертируем в base64
     let binaryRegular = '';
     const chunkSize = 8192;
     for (let i = 0; i < uint8ArrayRegular.length; i += chunkSize) {
@@ -27,17 +27,34 @@ export async function loadCyrillicFont(pdf: jsPDF): Promise<void> {
     }
     const base64Regular = btoa(binaryRegular);
     
-    console.log('Font loaded, adding to PDF...');
+    console.log('Regular font loaded, adding to PDF...');
     
-    pdf.addFileToVFS('Roboto-Regular.ttf', base64Regular);
-    pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    pdf.addFileToVFS('OpenSans-Regular.ttf', base64Regular);
+    pdf.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
     
-    // Для жирного используем тот же шрифт (variable font)
-    pdf.addFileToVFS('Roboto-Bold.ttf', base64Regular);
-    pdf.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+    // Загружаем жирный шрифт
+    const responseBold = await fetch(fontBoldUrl);
+    if (!responseBold.ok) {
+      throw new Error('Failed to load bold font');
+    }
+    
+    const bufferBold = await responseBold.arrayBuffer();
+    const uint8ArrayBold = new Uint8Array(bufferBold);
+    
+    let binaryBold = '';
+    for (let i = 0; i < uint8ArrayBold.length; i += chunkSize) {
+      const chunk = uint8ArrayBold.subarray(i, i + chunkSize);
+      binaryBold += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64Bold = btoa(binaryBold);
+    
+    console.log('Bold font loaded, adding to PDF...');
+    
+    pdf.addFileToVFS('OpenSans-Bold.ttf', base64Bold);
+    pdf.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
     
     // Устанавливаем шрифт по умолчанию
-    pdf.setFont('Roboto', 'normal');
+    pdf.setFont('OpenSans', 'normal');
     
     console.log('Font successfully loaded');
   } catch (error) {
