@@ -5,7 +5,6 @@ import RouteMap from './RouteMap';
 import { generatePDF } from './pdfGenerator';
 import PointPicker from './PointPicker';
 import BrandMark from './BrandMark';
-import html2canvas from 'html2canvas';
 
 type Screen = 'landing' | 'route' | 'loading' | 'pick-start' | 'pick-finish';
 
@@ -96,15 +95,87 @@ function App() {
     try {
       let mapImage: string | undefined;
       
-      // Захватываем изображение карты, если контейнер доступен
-      if (mapContainerRef.current) {
-        const canvas = await html2canvas(mapContainerRef.current, {
-          useCORS: true,
-          allowTaint: true,
-          scale: 2,
-          backgroundColor: '#E8E5DB',
-          logging: false,
-        });
+      // Захватываем изображение карты через статический URL
+      // Используем OpenStreetMap Static Maps
+      const bounds = {
+        minLat: Math.min(route.start.lat, route.finish.lat) - 0.02,
+        maxLat: Math.max(route.start.lat, route.finish.lat) + 0.02,
+        minLon: Math.min(route.start.lon, route.finish.lon) - 0.02,
+        maxLon: Math.max(route.start.lon, route.finish.lon) + 0.02,
+      };
+      
+      const centerLat = (bounds.minLat + bounds.maxLat) / 2;
+      const centerLon = (bounds.minLon + bounds.maxLon) / 2;
+      
+      // Создаём canvas для карты
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 600;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        // Фон
+        ctx.fillStyle = '#E8E5DB';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Загружаем тайлы карты
+        const tileUrl = `https://tile.openstreetmap.org/13/${Math.floor((centerLon + 180) / 360 * Math.pow(2, 13))}/${Math.floor((1 - Math.log(Math.tan(centerLat * Math.PI / 180) + 1 / Math.cos(centerLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, 13))}.png`;
+        
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = tileUrl;
+          });
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        } catch (e) {
+          console.warn('Could not load map tile:', e);
+        }
+        
+        // Рисуем маршрут
+        ctx.strokeStyle = '#D92F2F';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        
+        // Преобразуем координаты в пиксели
+        const toPixel = (lat: number, lon: number) => {
+          const x = ((lon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * canvas.width;
+          const y = ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * canvas.height;
+          return { x, y };
+        };
+        
+        // Рисуем линию маршрута
+        if (route.geometry.length > 0) {
+          const startPoint = toPixel(route.geometry[0][0], route.geometry[0][1]);
+          ctx.moveTo(startPoint.x, startPoint.y);
+          
+          for (let i = 1; i < route.geometry.length; i += Math.floor(route.geometry.length / 100)) {
+            const point = toPixel(route.geometry[i][0], route.geometry[i][1]);
+            ctx.lineTo(point.x, point.y);
+          }
+          
+          const endPoint = toPixel(route.geometry[route.geometry.length - 1][0], route.geometry[route.geometry.length - 1][1]);
+          ctx.lineTo(endPoint.x, endPoint.y);
+        }
+        
+        ctx.stroke();
+        
+        // Рисуем маркеры
+        const startPixel = toPixel(route.start.lat, route.start.lon);
+        const finishPixel = toPixel(route.finish.lat, route.finish.lon);
+        
+        // Старт (квадрат)
+        ctx.fillStyle = '#171717';
+        ctx.fillRect(startPixel.x - 8, startPixel.y - 8, 16, 16);
+        
+        // Финиш (круг)
+        ctx.fillStyle = '#D92F2F';
+        ctx.beginPath();
+        ctx.arc(finishPixel.x, finishPixel.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
         mapImage = canvas.toDataURL('image/jpeg', 0.92);
       }
       

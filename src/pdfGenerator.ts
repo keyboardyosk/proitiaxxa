@@ -41,7 +41,7 @@ export function generatePDF(route: Route, mapImage?: string): void {
   // Генерируем HTML
   container.innerHTML = `
     <!-- СТРАНИЦА 1: ОБЛОЖКА -->
-    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+    <div style="width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
       
       <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
@@ -122,7 +122,7 @@ export function generatePDF(route: Route, mapImage?: string): void {
     </div>
     
     <!-- СТРАНИЦА 2: КАРТА -->
-    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+    <div style="page-break-before: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
       
       <div style="position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;">
@@ -178,7 +178,7 @@ export function generatePDF(route: Route, mapImage?: string): void {
     </div>
     
     <!-- СТРАНИЦА 3: МАРШРУТНЫЙ ЛИСТ -->
-    <div style="page-break-after: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+    <div style="page-break-before: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
       
       <div style="position: relative; z-index: 1;">
@@ -242,8 +242,8 @@ export function generatePDF(route: Route, mapImage?: string): void {
       </div>
     </div>
     
-    <!-- СТРАНИЦА 3: ЛИСТ ПРОХОЖДЕНИЯ -->
-    <div style="width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
+    <!-- СТРАНИЦА 4: ЛИСТ ПРОХОЖДЕНИЯ -->
+    <div style="page-break-before: always; width: 210mm; height: 297mm; padding: 18mm; box-sizing: border-box; position: relative; background: #F1EFE8;">
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 0.3mm solid #B8B5AD;"></div>
       
       <div style="position: relative; z-index: 1;">
@@ -299,15 +299,49 @@ export function generatePDF(route: Route, mapImage?: string): void {
     </div>
   `;
   
-  // Конвертируем в PDF
-  const opt = {
-    margin: 0,
-    filename: `proiti-spb-${routeNum}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, logging: false },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
-  };
+  // Добавляем контейнер в DOM для рендеринга
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  document.body.appendChild(container);
   
-  html2pdf().set(opt).from(container).save();
+  // Ждём загрузки изображения карты, если оно есть
+  const loadPromise = mapImage 
+    ? new Promise<void>((resolve) => {
+        const img = container.querySelector('img');
+        if (img) {
+          if (img.complete) {
+            resolve();
+          } else {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }
+        } else {
+          resolve();
+        }
+      })
+    : Promise.resolve();
+  
+  loadPromise.then(() => {
+    // Конвертируем в PDF
+    const opt = {
+      margin: 0,
+      filename: `proiti-spb-${routeNum}.pdf`,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#F1EFE8'
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+    
+    html2pdf().set(opt).from(container).save().then(() => {
+      // Удаляем контейнер после генерации
+      document.body.removeChild(container);
+    });
+  });
 }
