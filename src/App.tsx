@@ -95,9 +95,13 @@ function App() {
   }, [route]);
   
   const handleAddMapToPDF = useCallback(() => {
-    if (!route) return;
-    // Открываем модальное окно для добавления карты
+    console.log('handleAddMapToPDF called');
+    if (!route) {
+      console.error('No route available');
+      return;
+    }
     setShowSnapshotModal(true);
+    console.log('showSnapshotModal set to true');
   }, [route]);
   
   const handleBack = useCallback(() => {

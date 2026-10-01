@@ -35,6 +35,9 @@ export default function MapSnapshotModal({ route, onClose }: MapSnapshotModalPro
     setIsCapturing(true);
     
     try {
+      // Ждём загрузки тайлов
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const canvas = await html2canvas(mapContainerRef.current, {
         useCORS: true,
         allowTaint: true,
@@ -47,6 +50,7 @@ export default function MapSnapshotModal({ route, onClose }: MapSnapshotModalPro
       setSnapshots(prev => [...prev, imageData]);
     } catch (err) {
       console.error('Error capturing map:', err);
+      alert('Не удалось захватить карту. Попробуйте ещё раз.');
     } finally {
       setIsCapturing(false);
     }
@@ -77,7 +81,7 @@ export default function MapSnapshotModal({ route, onClose }: MapSnapshotModalPro
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
       <div className="bg-paper w-full max-w-6xl h-[90vh] flex flex-col border border-line-soft">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-line-soft">
@@ -106,10 +110,12 @@ export default function MapSnapshotModal({ route, onClose }: MapSnapshotModalPro
                 center={[59.9343, 30.3351]}
                 zoom={12}
                 className="w-full h-full"
+                preferCanvas={true}
               >
                 <TileLayer
                   attribution='&copy; OpenStreetMap'
                   url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  crossOrigin="anonymous"
                 />
                 <FitToRoute route={route} />
               </MapContainer>
