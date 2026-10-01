@@ -5,6 +5,7 @@ import RouteMap from './RouteMap';
 import { generatePDF } from './pdfGenerator';
 import PointPicker from './PointPicker';
 import BrandMark from './BrandMark';
+import html2canvas from 'html2canvas';
 
 type Screen = 'landing' | 'route' | 'loading' | 'pick-start' | 'pick-finish';
 
@@ -179,11 +180,11 @@ function App() {
         mapImage = canvas.toDataURL('image/jpeg', 0.92);
       }
       
-      generatePDF(route, mapImage);
+      await generatePDF(route, mapImage);
     } catch (err) {
       console.error('PDF generation error:', err);
       // В случае ошибки генерируем PDF без карты
-      generatePDF(route);
+      await generatePDF(route);
     } finally {
       setIsGeneratingPDF(false);
     }
