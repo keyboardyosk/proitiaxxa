@@ -44,13 +44,19 @@ export function generatePDF(route: Route): void {
   doc.setFont('times', 'bold');
   doc.text('Старт:', margin, y);
   doc.setFont('times', 'normal');
-  doc.text(`${route.start.lat.toFixed(4)}, ${route.start.lon.toFixed(4)}`, margin + 30, y);
+  const startLabel = route.start.name 
+    ? route.start.name.split(',').slice(0, 2).join(',')
+    : `${route.start.lat.toFixed(4)}, ${route.start.lon.toFixed(4)}`;
+  doc.text(startLabel, margin + 30, y);
   y += 8;
   
   doc.setFont('times', 'bold');
   doc.text('Финиш:', margin, y);
   doc.setFont('times', 'normal');
-  doc.text(`${route.finish.lat.toFixed(4)}, ${route.finish.lon.toFixed(4)}`, margin + 30, y);
+  const finishLabel = route.finish.name 
+    ? route.finish.name.split(',').slice(0, 2).join(',')
+    : `${route.finish.lat.toFixed(4)}, ${route.finish.lon.toFixed(4)}`;
+  doc.text(finishLabel, margin + 30, y);
   y += 15;
   
   doc.setFontSize(10);

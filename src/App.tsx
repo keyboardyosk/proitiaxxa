@@ -125,17 +125,27 @@ function App() {
             </div>
             
             <div className="mt-5 pt-4 border-t border-stone-100 flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span>
-                <span className="text-stone-600">
-                  Старт: {route.start.lat.toFixed(4)}, {route.start.lon.toFixed(4)}
-                </span>
+              <div className="flex items-start gap-2">
+                <span className="w-3 h-3 rounded-full bg-green-500 shadow-sm mt-1.5 flex-shrink-0"></span>
+                <div className="text-stone-600">
+                  <p className="font-medium text-stone-700">
+                    Старт{route.start.name ? ': ' + route.start.name.split(',').slice(0, 2).join(',') : ''}
+                  </p>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    {route.start.lat.toFixed(4)}, {route.start.lon.toFixed(4)}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></span>
-                <span className="text-stone-600">
-                  Финиш: {route.finish.lat.toFixed(4)}, {route.finish.lon.toFixed(4)}
-                </span>
+              <div className="flex items-start gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm mt-1.5 flex-shrink-0"></span>
+                <div className="text-stone-600">
+                  <p className="font-medium text-stone-700">
+                    Финиш{route.finish.name ? ': ' + route.finish.name.split(',').slice(0, 2).join(',') : ''}
+                  </p>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    {route.finish.lat.toFixed(4)}, {route.finish.lon.toFixed(4)}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

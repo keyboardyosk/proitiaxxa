@@ -64,15 +64,35 @@ export default function RouteMap({ route }: RouteMapProps) {
       <Marker position={[route.start.lat, route.start.lon]} icon={startIcon}>
         <Popup>
           <strong>Старт</strong>
+          {route.start.name && (
+            <>
+              <br />
+              <span style={{ fontSize: '12px' }}>
+                {route.start.name.split(',').slice(0, 2).join(',')}
+              </span>
+            </>
+          )}
           <br />
-          {route.start.lat.toFixed(4)}, {route.start.lon.toFixed(4)}
+          <span style={{ fontSize: '11px', color: '#666' }}>
+            {route.start.lat.toFixed(4)}, {route.start.lon.toFixed(4)}
+          </span>
         </Popup>
       </Marker>
       <Marker position={[route.finish.lat, route.finish.lon]} icon={finishIcon}>
         <Popup>
           <strong>Финиш</strong>
+          {route.finish.name && (
+            <>
+              <br />
+              <span style={{ fontSize: '12px' }}>
+                {route.finish.name.split(',').slice(0, 2).join(',')}
+              </span>
+            </>
+          )}
           <br />
-          {route.finish.lat.toFixed(4)}, {route.finish.lon.toFixed(4)}
+          <span style={{ fontSize: '11px', color: '#666' }}>
+            {route.finish.lat.toFixed(4)}, {route.finish.lon.toFixed(4)}
+          </span>
         </Popup>
       </Marker>
       <FitBounds route={route} />

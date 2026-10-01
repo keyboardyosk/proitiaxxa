@@ -113,10 +113,29 @@ async function fetchWalkingRoute(start: GeoPoint, finish: GeoPoint): Promise<{
       }
     }
     
+    // Пересчитываем время по пешеходной скорости с учётом усталости
+    // OSRM public demo может возвращать автомобильное время, поэтому используем свою формулу
+    // Средняя скорость снижается на длинных дистанциях:
+    // до 10 км — 5 км/ч, 10-20 км — 4.5 км/ч, 20-30 км — 4 км/ч, 30+ км — 3.5 км/ч
+    let walkingDuration = 0;
+    let remaining = route.distance;
+    const segments = [
+      { maxDist: 10000, speed: 5.0 },   // до 10 км: 5 км/ч
+      { maxDist: 10000, speed: 4.5 },   // 10-20 км: 4.5 км/ч
+      { maxDist: 10000, speed: 4.0 },   // 20-30 км: 4 км/ч
+      { maxDist: Infinity, speed: 3.5 }, // 30+ км: 3.5 км/ч
+    ];
+    for (const seg of segments) {
+      if (remaining <= 0) break;
+      const dist = Math.min(remaining, seg.maxDist);
+      walkingDuration += dist / (seg.speed * 1000 / 3600);
+      remaining -= dist;
+    }
+    
     return {
       geometry: coordinates,
       distance: route.distance,
-      duration: route.duration,
+      duration: walkingDuration,
       steps,
     };
   } catch (error) {
