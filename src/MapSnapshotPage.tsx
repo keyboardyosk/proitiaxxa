@@ -80,8 +80,8 @@ export default function MapSnapshotPage({ route, onClose }: MapSnapshotPageProps
     setIsGeneratingPDF(true);
     
     try {
-      const mapImage = snapshots.length > 0 ? snapshots[0] : undefined;
-      await generatePDF(route, mapImage);
+      // Передаём все снимки, а не только первый
+      await generatePDF(route, snapshots);
       onClose();
     } catch (err) {
       console.error('Error generating PDF:', err);
