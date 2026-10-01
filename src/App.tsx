@@ -2,10 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Route, GenerationMode, GeoPoint } from './types';
 import { generateRoute, formatDistance, formatDuration } from './routeGenerator';
 import RouteMap from './RouteMap';
-import { generatePDF } from './pdfGenerator';
 import PointPicker from './PointPicker';
 import BrandMark from './BrandMark';
-import html2canvas from 'html2canvas';
+import MapSnapshotModal from './MapSnapshotModal';
 
 type Screen = 'landing' | 'route' | 'loading' | 'pick-start' | 'pick-finish';
 
@@ -27,7 +26,7 @@ function App() {
     point: GeoPoint;
     mode: 'from-start' | 'to-finish';
   } | null>(null);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   
   const handleGenerate = useCallback(async (mode: GenerationMode = 'random', userPoint?: GeoPoint) => {
@@ -88,155 +87,9 @@ function App() {
     }
   }, [savedUserPoint]);
   
-  const handleDownloadPDF = useCallback(async () => {
+  const handleDownloadPDF = useCallback(() => {
     if (!route) return;
-    
-    setIsGeneratingPDF(true);
-    
-    try {
-      let mapImage: string | undefined;
-      
-      // Рассчитываем bounds по всей геометрии маршрута
-      const lats = route.geometry.map(g => g[0]);
-      const lons = route.geometry.map(g => g[1]);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLon = Math.min(...lons);
-      const maxLon = Math.max(...lons);
-      
-      // Добавляем отступы (10% от размера)
-      const latPadding = (maxLat - minLat) * 0.1;
-      const lonPadding = (maxLon - minLon) * 0.1;
-      
-      const bounds = {
-        minLat: minLat - latPadding,
-        maxLat: maxLat + latPadding,
-        minLon: minLon - lonPadding,
-        maxLon: maxLon + lonPadding,
-      };
-      
-      // Создаём canvas для карты
-      const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 600;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        // Фон
-        ctx.fillStyle = '#E8E5DB';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Рассчитываем zoom level для покрытия всей области
-        const latDiff = bounds.maxLat - bounds.minLat;
-        const lonDiff = bounds.maxLon - bounds.minLon;
-        const maxDiff = Math.max(latDiff, lonDiff);
-        
-        // Подбираем zoom level (чем больше область, тем меньше zoom)
-        let zoom = 14;
-        if (maxDiff > 0.15) zoom = 11;
-        else if (maxDiff > 0.1) zoom = 12;
-        else if (maxDiff > 0.05) zoom = 13;
-        
-        // Функция конвертации lat/lon в tile coordinates
-        const lon2tile = (lon: number, z: number) => Math.floor((lon + 180) / 360 * Math.pow(2, z));
-        const lat2tile = (lat: number, z: number) => Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
-        
-        // Рассчитываем диапазон тайлов
-        const minTileX = lon2tile(bounds.minLon, zoom);
-        const maxTileX = lon2tile(bounds.maxLon, zoom);
-        const minTileY = lat2tile(bounds.maxLat, zoom);
-        const maxTileY = lat2tile(bounds.minLat, zoom);
-        
-        const tileWidth = 256;
-        const tileHeight = 256;
-        const totalTilesX = maxTileX - minTileX + 1;
-        const totalTilesY = maxTileY - minTileY + 1;
-        
-        // Масштабируем тайлы для заполнения canvas
-        const scaleX = canvas.width / (totalTilesX * tileWidth);
-        const scaleY = canvas.height / (totalTilesY * tileHeight);
-        const scale = Math.min(scaleX, scaleY);
-        
-        // Загружаем и рисуем все необходимые тайлы
-        const tilePromises: Promise<void>[] = [];
-        for (let x = minTileX; x <= maxTileX; x++) {
-          for (let y = minTileY; y <= maxTileY; y++) {
-            const tileUrl = `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
-            const promise = new Promise<void>((resolve) => {
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              img.onload = () => {
-                const destX = (x - minTileX) * tileWidth * scale;
-                const destY = (y - minTileY) * tileHeight * scale;
-                ctx.drawImage(img, destX, destY, tileWidth * scale, tileHeight * scale);
-                resolve();
-              };
-              img.onerror = () => resolve();
-              img.src = tileUrl;
-            });
-            tilePromises.push(promise);
-          }
-        }
-        
-        try {
-          await Promise.all(tilePromises);
-        } catch (e) {
-          console.warn('Could not load map tiles:', e);
-        }
-        
-        // Рисуем маршрут
-        ctx.strokeStyle = '#D92F2F';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        
-        // Преобразуем координаты в пиксели
-        const toPixel = (lat: number, lon: number) => {
-          const x = ((lon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * canvas.width;
-          const y = ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * canvas.height;
-          return { x, y };
-        };
-        
-        // Рисуем линию маршрута
-        if (route.geometry.length > 0) {
-          const startPoint = toPixel(route.geometry[0][0], route.geometry[0][1]);
-          ctx.moveTo(startPoint.x, startPoint.y);
-          
-          for (let i = 1; i < route.geometry.length; i += Math.floor(route.geometry.length / 100)) {
-            const point = toPixel(route.geometry[i][0], route.geometry[i][1]);
-            ctx.lineTo(point.x, point.y);
-          }
-          
-          const endPoint = toPixel(route.geometry[route.geometry.length - 1][0], route.geometry[route.geometry.length - 1][1]);
-          ctx.lineTo(endPoint.x, endPoint.y);
-        }
-        
-        ctx.stroke();
-        
-        // Рисуем маркеры
-        const startPixel = toPixel(route.start.lat, route.start.lon);
-        const finishPixel = toPixel(route.finish.lat, route.finish.lon);
-        
-        // Старт (квадрат)
-        ctx.fillStyle = '#171717';
-        ctx.fillRect(startPixel.x - 8, startPixel.y - 8, 16, 16);
-        
-        // Финиш (круг)
-        ctx.fillStyle = '#D92F2F';
-        ctx.beginPath();
-        ctx.arc(finishPixel.x, finishPixel.y, 10, 0, Math.PI * 2);
-        ctx.fill();
-        
-        mapImage = canvas.toDataURL('image/jpeg', 0.92);
-      }
-      
-      await generatePDF(route, mapImage);
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      // В случае ошибки генерируем PDF без карты
-      await generatePDF(route);
-    } finally {
-      setIsGeneratingPDF(false);
-    }
+    setShowSnapshotModal(true);
   }, [route]);
   
   const handleBack = useCallback(() => {
@@ -343,19 +196,12 @@ function App() {
             
             <button
               onClick={handleDownloadPDF}
-              disabled={isGeneratingPDF}
-              className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-[10px] uppercase tracking-[0.2em] disabled:opacity-50"
+              className="text-ink-muted hover:text-ink flex items-center gap-2 transition-colors font-technical text-[10px] uppercase tracking-[0.2em]"
             >
-              {isGeneratingPDF ? (
-                <div className="w-3.5 h-3.5 border border-ink-muted border-t-ink rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <span className="hidden sm:inline">PDF</span>
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                </>
-              )}
+              <span className="hidden sm:inline">PDF</span>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
             </button>
           </div>
         </header>
@@ -509,22 +355,12 @@ function App() {
                 
                 <button
                   onClick={handleDownloadPDF}
-                  disabled={isGeneratingPDF}
-                  className="w-full px-6 py-3 bg-paper border border-line-soft text-ink font-technical text-[10px] uppercase tracking-[0.15em] hover:bg-paper-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-6 py-3 bg-paper border border-line-soft text-ink font-technical text-[10px] uppercase tracking-[0.15em] hover:bg-paper-dark transition-colors flex items-center justify-center gap-2"
                 >
-                  {isGeneratingPDF ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border border-ink-muted border-t-ink rounded-full animate-spin"></div>
-                      Подготовка PDF...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      Скачать PDF
-                    </>
-                  )}
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Скачать PDF
                 </button>
               </div>
               
@@ -638,6 +474,14 @@ function App() {
       <footer className="text-center py-4 text-ink-muted text-[10px] font-technical uppercase tracking-[0.2em] relative z-10 border-t border-line-soft">
         OpenStreetMap · OSRM
       </footer>
+      
+      {/* Модальное окно для создания снимков карты */}
+      {showSnapshotModal && route && (
+        <MapSnapshotModal
+          route={route}
+          onClose={() => setShowSnapshotModal(false)}
+        />
+      )}
     </div>
   );
 }
